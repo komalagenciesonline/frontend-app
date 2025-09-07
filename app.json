@@ -1,22 +1,29 @@
 {
   "expo": {
-    "name": "kunal",
-    "slug": "kunal",
+    "name": "Komal Agencies",
+    "slug": "komal-agencies",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "kunal",
+    "scheme": "komal-agencies",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "description": "Komal Agencies - A comprehensive business management app for handling items, orders, and retailer operations.",
+    "privacy": "public",
+    "githubUrl": "https://github.com/yourusername/komal-agencies",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.komalagencies.app",
+      "buildNumber": "1"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "package": "com.komalagencies.app",
+      "versionCode": 1
     },
     "web": {
       "bundler": "metro",
