@@ -1,6 +1,7 @@
 // API Configuration
+
 const API_BASE_URL = 'https://backend-app-9rhz.onrender.com/api';
-// const API_BASE_URL = 'http://192.168.1.46:3000/api';
+// const API_BASE_URL = 'http://192.168.29.111:3000/api';
 
 // Types based on backend models
 export interface Product {

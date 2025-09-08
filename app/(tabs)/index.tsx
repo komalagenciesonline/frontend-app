@@ -62,7 +62,21 @@ export default function DashboardScreen() {
   // Calculate stats from real data
   const stats = {
     totalOrders: orders.length,
-    totalItems: orders.reduce((sum, order) => sum + order.totalItems, 0),
+    totalItems: (() => {
+      // Count unique products across all orders
+      // Use productName + brandName as unique identifier since some items have null productId
+      const uniqueProducts = new Set();
+      orders.forEach(order => {
+        if (order.items) {
+          order.items.forEach(item => {
+            // Create a unique key using productName + brandName
+            const uniqueKey = `${item.productName}-${item.brandName}`;
+            uniqueProducts.add(uniqueKey);
+          });
+        }
+      });
+      return uniqueProducts.size;
+    })(),
     pendingOrders: orders.filter(order => order.status === 'Pending').length,
     totalBits: bits.length, // Use hardcoded bits count (same as retailers.tsx)
   };

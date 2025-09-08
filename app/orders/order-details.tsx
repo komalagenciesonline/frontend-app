@@ -35,6 +35,12 @@ export default function OrderDetailsScreen() {
       <View style={styles.orderItemInfo}>
         <Text style={styles.orderItemName}>{item.productName}</Text>
         <Text style={styles.orderItemBrand}>{item.brandName}</Text>
+        {item.productNotes && item.productNotes.trim() && (
+          <View style={styles.notesContainer}>
+            <Ionicons name="document-text-outline" size={14} color="#666" />
+            <Text style={styles.orderItemNotes}>{item.productNotes}</Text>
+          </View>
+        )}
       </View>
       
       <View style={styles.orderItemDetails}>
@@ -342,6 +348,25 @@ const styles = StyleSheet.create({
   orderItemBrand: {
     fontSize: 14,
     color: '#666666',
+  },
+  notesContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginTop: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 8,
+    borderLeftWidth: 3,
+    borderLeftColor: '#007AFF',
+  },
+  orderItemNotes: {
+    fontSize: 13,
+    color: '#555555',
+    flex: 1,
+    marginLeft: 6,
+    lineHeight: 18,
+    fontStyle: 'italic',
   },
   orderItemDetails: {
     alignItems: 'flex-end',
