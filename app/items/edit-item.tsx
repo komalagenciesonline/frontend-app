@@ -89,7 +89,7 @@ export default function EditItemScreen() {
 
       Alert.alert(
         'Success!',
-        'Product updated successfully',
+        'Product updated successfully. If you changed the brand and the old brand had no other products, it has been automatically deleted.',
         [
           {
             text: 'OK',

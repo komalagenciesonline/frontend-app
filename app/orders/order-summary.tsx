@@ -11,6 +11,7 @@ interface SelectedItem {
   brandName: string;
   unit: 'Pc' | 'Outer' | 'Case';
   quantity: number;
+  productNotes?: string;
 }
 
 export default function OrderSummaryScreen() {
@@ -78,6 +79,12 @@ export default function OrderSummaryScreen() {
       <View style={styles.itemInfo}>
         <Text style={styles.itemName}>{item.productName}</Text>
         <Text style={styles.brandName}>{item.brandName}</Text>
+        {item.productNotes && item.productNotes.trim() && (
+          <View style={styles.notesContainer}>
+            <Text style={styles.notesLabel}>Notes:</Text>
+            <Text style={styles.notesText}>{item.productNotes}</Text>
+          </View>
+        )}
       </View>
       <View style={styles.itemDetails}>
         <Text style={styles.quantityText}>{item.quantity}</Text>
@@ -292,6 +299,25 @@ const styles = StyleSheet.create({
   brandName: {
     fontSize: 14,
     color: '#666666',
+  },
+  notesContainer: {
+    marginTop: 8,
+    padding: 8,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 6,
+    borderLeftWidth: 3,
+    borderLeftColor: '#007AFF',
+  },
+  notesLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#007AFF',
+    marginBottom: 2,
+  },
+  notesText: {
+    fontSize: 13,
+    color: '#374151',
+    lineHeight: 18,
   },
   itemDetails: {
     alignItems: 'flex-end',

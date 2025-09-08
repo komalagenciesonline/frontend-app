@@ -1,5 +1,6 @@
 // API Configuration
 const API_BASE_URL = 'https://backend-app-9rhz.onrender.com/api';
+// const API_BASE_URL = 'http://192.168.1.46:3000/api';
 
 // Types based on backend models
 export interface Product {
@@ -26,6 +27,7 @@ export interface OrderItem {
   brandName: string;
   unit: 'Pc' | 'Outer' | 'Case';
   quantity: number;
+  productNotes?: string;
 }
 
 export interface Order {
@@ -177,6 +179,13 @@ export const brandAPI = {
   delete: async (id: string): Promise<{ message: string }> => {
     return apiCall<{ message: string }>(`/brands/${id}`, {
       method: 'DELETE',
+    });
+  },
+
+  // Cleanup empty brands (manually trigger cleanup)
+  cleanup: async (): Promise<{ message: string }> => {
+    return apiCall<{ message: string }>('/brands/cleanup', {
+      method: 'POST',
     });
   },
 };

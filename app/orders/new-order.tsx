@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Image, Modal, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Image, Modal, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { api, Brand, Product } from '../../utils/api';
 
@@ -11,6 +11,7 @@ interface SelectedItem {
   brandName: string;
   unit: 'Pc' | 'Outer' | 'Case';
   quantity: number;
+  productNotes?: string;
 }
 
 export default function NewOrderScreen() {
@@ -62,7 +63,7 @@ export default function NewOrderScreen() {
     setIsModalVisible(true);
   };
 
-  const handleAddToOrder = (product: Product, unit: 'Pc' | 'Outer' | 'Case', quantity: number) => {
+  const handleAddToOrder = (product: Product, unit: 'Pc' | 'Outer' | 'Case', quantity: number, productNotes?: string) => {
     setSelectedItems(prevItems => {
       const existingItemIndex = prevItems.findIndex(
         item => item.productId === product._id && item.unit === unit
@@ -72,6 +73,7 @@ export default function NewOrderScreen() {
         // Update existing item
         const updatedItems = [...prevItems];
         updatedItems[existingItemIndex].quantity = quantity;
+        updatedItems[existingItemIndex].productNotes = productNotes || '';
         return updatedItems;
       } else {
         // Add new item
@@ -80,7 +82,8 @@ export default function NewOrderScreen() {
           productName: product.name,
           brandName: selectedBrand?.name || 'Unknown Brand',
           unit,
-          quantity
+          quantity,
+          productNotes: productNotes || ''
         };
         return [...prevItems, newItem];
       }
@@ -104,14 +107,15 @@ export default function NewOrderScreen() {
   };
 
   const ProductModal = () => {
-    const [productSelections, setProductSelections] = useState<{[key: string]: {unit: 'Pc' | 'Outer' | 'Case', quantity: number}}>({});
+    const [productSelections, setProductSelections] = useState<{[key: string]: {unit: 'Pc' | 'Outer' | 'Case', quantity: number, productNotes: string}}>({});
 
     const handleUnitChange = (productId: string, unit: 'Pc' | 'Outer' | 'Case') => {
       setProductSelections(prev => ({
         ...prev,
         [productId]: {
           unit,
-          quantity: prev[productId]?.quantity || 0
+          quantity: prev[productId]?.quantity || 0,
+          productNotes: prev[productId]?.productNotes || ''
         }
       }));
     };
@@ -121,7 +125,19 @@ export default function NewOrderScreen() {
         ...prev,
         [productId]: {
           unit: prev[productId]?.unit || 'Pc',
-          quantity: Math.max(0, quantity)
+          quantity: Math.max(0, quantity),
+          productNotes: prev[productId]?.productNotes || ''
+        }
+      }));
+    };
+
+    const handleNotesChange = (productId: string, productNotes: string) => {
+      setProductSelections(prev => ({
+        ...prev,
+        [productId]: {
+          unit: prev[productId]?.unit || 'Pc',
+          quantity: prev[productId]?.quantity || 0,
+          productNotes
         }
       }));
     };
@@ -131,7 +147,7 @@ export default function NewOrderScreen() {
         if (selection.quantity > 0) {
           const product = products.find(p => p._id === productId);
           if (product) {
-            handleAddToOrder(product, selection.unit, selection.quantity);
+            handleAddToOrder(product, selection.unit, selection.quantity, selection.productNotes);
           }
         }
       });
@@ -235,6 +251,21 @@ export default function NewOrderScreen() {
                       </TouchableOpacity>
                     </TouchableOpacity>
                   </View>
+                </View>
+                
+                {/* Notes Input */}
+                <View style={styles.notesSection}>
+                  <Text style={styles.notesLabel}>Notes (Optional)</Text>
+                  <TextInput
+                    style={styles.notesInput}
+                    placeholder="Add notes for this product..."
+                    placeholderTextColor="#999"
+                    value={productSelections[product._id]?.productNotes || ''}
+                    onChangeText={(text) => handleNotesChange(product._id, text)}
+                    multiline
+                    numberOfLines={2}
+                    maxLength={500}
+                  />
                 </View>
               </View>
             ))}
@@ -592,6 +623,27 @@ const styles = StyleSheet.create({
   },
   quantityTextSelected: {
     color: '#ffffff',
+  },
+  notesSection: {
+    marginTop: 12,
+  },
+  notesLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 6,
+  },
+  notesInput: {
+    backgroundColor: '#F9FAFB',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
+    color: '#1F2937',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    textAlignVertical: 'top',
+    minHeight: 60,
   },
   loadingContainer: {
     flex: 1,

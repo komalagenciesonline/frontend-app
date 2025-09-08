@@ -15,6 +15,7 @@ export default function ItemsScreen() {
   const [products, setProducts] = useState<Product[]>([]);
   const [brandOptions, setBrandOptions] = useState<{label: string, value: string}[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isCleaningUp, setIsCleaningUp] = useState(false);
 
   // Load products and brand options
   const loadData = useCallback(async () => {
@@ -57,7 +58,9 @@ export default function ItemsScreen() {
   const handleDeleteProduct = async (product: Product) => {
     Alert.alert(
       'Delete Product',
-      `Are you sure you want to delete "${product.name}"? This action cannot be undone.`,
+      `Are you sure you want to delete "${product.name}"? This action cannot be undone.${
+        product.brandName ? `\n\nNote: If this is the last product for brand "${product.brandName}", the brand will be automatically deleted.` : ''
+      }`,
       [
         {
           text: 'Cancel',
@@ -71,10 +74,45 @@ export default function ItemsScreen() {
               await api.products.delete(product._id);
               // Reload products after deletion
               await loadData();
-              Alert.alert('Success', 'Product deleted successfully');
+              Alert.alert(
+                'Success', 
+                'Product deleted successfully. If this was the last product for its brand, the brand has been automatically removed.',
+                [{ text: 'OK' }]
+              );
             } catch (error) {
               console.error('Error deleting product:', error);
               Alert.alert('Error', 'Failed to delete product. Please try again.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  // Handle brand cleanup
+  const handleBrandCleanup = async () => {
+    Alert.alert(
+      'Cleanup Empty Brands',
+      'This will automatically delete any brands that have no products. Continue?',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Cleanup',
+          onPress: async () => {
+            try {
+              setIsCleaningUp(true);
+              await api.brands.cleanup();
+              // Reload data to reflect changes
+              await loadData();
+              Alert.alert('Success', 'Brand cleanup completed successfully');
+            } catch (error) {
+              console.error('Error during brand cleanup:', error);
+              Alert.alert('Error', 'Failed to cleanup brands. Please try again.');
+            } finally {
+              setIsCleaningUp(false);
             }
           },
         },
@@ -171,6 +209,13 @@ export default function ItemsScreen() {
       {/* Header with Brand Filter */}
       <View style={styles.header}>
         <BrandFilter />
+        <TouchableOpacity 
+          style={[styles.cleanupButton, isCleaningUp && styles.cleanupButtonDisabled]}
+          onPress={handleBrandCleanup}
+          disabled={isCleaningUp}
+        >
+          <Ionicons name="trash-outline" size={20} color={isCleaningUp ? "#999" : "#FF3B30"} />
+        </TouchableOpacity>
       </View>
 
       {/* Search Bar */}
@@ -182,12 +227,20 @@ export default function ItemsScreen() {
           <Text style={styles.productsTitle}>
             Products ({filteredProducts.length})
           </Text>
-          <TouchableOpacity 
-            style={styles.addButton}
-            onPress={() => router.push('/items/new-item')}
-          >
-            <Ionicons name="add" size={24} color="#007AFF" />
-          </TouchableOpacity>
+          <View style={styles.headerButtons}>
+            <TouchableOpacity 
+              style={styles.brandsButton}
+              onPress={() => router.push('/brands')}
+            >
+              <Ionicons name="business-outline" size={20} color="#007AFF" />
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.addButton}
+              onPress={() => router.push('/items/new-item')}
+            >
+              <Ionicons name="add" size={24} color="#007AFF" />
+            </TouchableOpacity>
+          </View>
         </View>
         
         <View style={styles.productsList}>
@@ -226,11 +279,22 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     borderBottomWidth: 1,
     borderBottomColor: '#e5e5ea',
+    gap: 12,
   },
   brandFilterContainer: {
     position: 'relative',
     zIndex: 1000,
-    width: '100%',
+    flex: 1,
+  },
+  cleanupButton: {
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: '#FFF5F5',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  cleanupButtonDisabled: {
+    backgroundColor: '#F5F5F5',
   },
   dropdownPicker: {
     backgroundColor: '#f0f8ff',
@@ -300,6 +364,16 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     color: '#1a1a1a',
+  },
+  headerButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  brandsButton: {
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: '#f0f8ff',
   },
   addButton: {
     padding: 8,
