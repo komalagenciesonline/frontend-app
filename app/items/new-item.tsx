@@ -145,11 +145,14 @@ export default function NewItemScreen() {
                  showTickIcon={true}
                  showArrowIcon={true}
                  searchable={false}
-                 listMode="SCROLLVIEW"
+                 listMode="MODAL"
                  maxHeight={300}
-                 scrollViewProps={{
-                   nestedScrollEnabled: true,
+                 modalProps={{
+                   animationType: "slide",
+                   transparent: true,
                  }}
+                 modalTitle="Select Brand"
+                 modalAnimationType="slide"
                />
             </View>
           </View>

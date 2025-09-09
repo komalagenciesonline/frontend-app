@@ -144,11 +144,14 @@ export default function ItemsScreen() {
         showTickIcon={true}
         showArrowIcon={true}
         searchable={false}
-        listMode="FLATLIST"
+        listMode="MODAL"
         maxHeight={400}
-        flatListProps={{
-          initialNumToRender: 10,
+        modalProps={{
+          animationType: "slide",
+          transparent: true,
         }}
+        modalTitle="Select Brand"
+        modalAnimationType="slide"
       />
     </View>
   );

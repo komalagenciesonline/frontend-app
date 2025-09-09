@@ -144,11 +144,14 @@ export default function OrdersScreen() {
         showTickIcon={true}
         showArrowIcon={true}
         searchable={false}
-        listMode="FLATLIST"
+        listMode="MODAL"
         maxHeight={400}
-        flatListProps={{
-          initialNumToRender: 9,
+        modalProps={{
+          animationType: "slide",
+          transparent: true,
         }}
+        modalTitle="Select Bit"
+        modalAnimationType="slide"
       />
     </View>
   );
