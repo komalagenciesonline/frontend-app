@@ -2,18 +2,26 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import React, { useCallback, useState } from 'react';
-import { Alert, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import DropDownPicker from 'react-native-dropdown-picker';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Alert, Dimensions, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
+import Modal from 'react-native-modal';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { api, Retailer } from '../../utils/api';
+
+const { height: screenHeight, width: screenWidth } = Dimensions.get('screen');
 
 export default function RetailersScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [searchQuery, setSearchQuery] = useState('');
-  const [open, setOpen] = useState(false);
-  const [value, setValue] = useState('all');
+  const [bitsFilter, setBitsFilter] = useState('all');
   const [retailers, setRetailers] = useState<Retailer[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  
+  // Temporary filter state for modal (not applied until Apply is clicked)
+  const [tempBitsFilter, setTempBitsFilter] = useState('all');
+  
+  // Modal visibility state
+  const [isModalVisible, setModalVisible] = useState(false);
 
   // Bits options for dropdown picker
   const bits = [
@@ -33,7 +41,7 @@ export default function RetailersScreen() {
     try {
       setIsLoading(true);
       const retailersData = await api.retailers.getAll(
-        value === 'all' ? undefined : value,
+        bitsFilter === 'all' ? undefined : bitsFilter,
         searchQuery || undefined
       );
       setRetailers(retailersData);
@@ -43,7 +51,7 @@ export default function RetailersScreen() {
     } finally {
       setIsLoading(false);
     }
-  }, [value, searchQuery]);
+  }, [bitsFilter, searchQuery]);
 
   // Load retailers on component mount and when screen comes into focus
   useFocusEffect(
@@ -81,38 +89,22 @@ export default function RetailersScreen() {
     );
   };
 
-  // Since we're now filtering on the server side, we can use retailers directly
-  const filteredRetailers = retailers;
+  // Handle opening filter modal - copy current filter to temp state
+  const handleOpenFilterModal = () => {
+    setTempBitsFilter(bitsFilter);
+    setModalVisible(true);
+  };
 
-  const BitsChooser = () => (
-    <View style={styles.bitsChooserContainer}>
-      <DropDownPicker
-        open={open}
-        value={value}
-        items={bits}
-        setOpen={setOpen}
-        setValue={setValue}
-        placeholder="Select Bit"
-        style={styles.dropdownPicker}
-        dropDownContainerStyle={styles.dropdownContainer}
-        textStyle={styles.dropdownText}
-        arrowIconStyle={styles.arrowIcon}
-        tickIconStyle={styles.tickIcon}
-        zIndex={3000}
-        zIndexInverse={1000}
-        dropDownDirection="BOTTOM"
-        closeAfterSelecting={true}
-        showTickIcon={true}
-        showArrowIcon={true}
-        searchable={false}
-        listMode="FLATLIST"
-        maxHeight={400}
-        flatListProps={{
-          initialNumToRender: 9,
-        }}
-      />
-    </View>
-  );
+  // Handle applying filters
+  const handleApplyFilters = () => {
+    setBitsFilter(tempBitsFilter);
+    setModalVisible(false);
+  };
+
+  // Handle clearing all filters
+  const handleClearAllFilters = () => {
+    setTempBitsFilter('all');
+  };
 
   const SearchBar = () => (
     <View style={styles.searchContainer}>
@@ -125,6 +117,12 @@ export default function RetailersScreen() {
           value={searchQuery}
           onChangeText={setSearchQuery}
         />
+        <TouchableOpacity 
+          style={styles.filterButton}
+          onPress={handleOpenFilterModal}
+        >
+          <Ionicons name="filter-outline" size={20} color="#666" />
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -167,11 +165,6 @@ export default function RetailersScreen() {
     <SafeAreaView style={styles.container} edges={['top']}>
       <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
       
-      {/* Header with Bits Chooser */}
-      <View style={styles.header}>
-        <BitsChooser />
-      </View>
-
       {/* Search Bar */}
       <SearchBar />
 
@@ -207,6 +200,78 @@ export default function RetailersScreen() {
           )}
         </View>
       </ScrollView>
+
+      {/* Filter Modal */}
+      <Modal
+        isVisible={isModalVisible}
+        animationIn="slideInUp"
+        animationOut="slideOutDown"
+        style={styles.modal}
+        hasBackdrop={false}
+        coverScreen={true}
+        deviceHeight={screenHeight}
+        deviceWidth={screenWidth}
+        statusBarTranslucent={true}
+        useNativeDriverForBackdrop={true}
+        hideModalContentWhileAnimating={false}
+      >
+        <TouchableWithoutFeedback onPress={() => setModalVisible(false)}>
+          <View style={styles.customBackdrop} />
+        </TouchableWithoutFeedback>
+
+        <View style={[styles.modalContent, { paddingBottom: Math.max(insets.bottom, 20) }]}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Filter Retailers</Text>
+            <TouchableOpacity 
+              onPress={() => setModalVisible(false)}
+              style={styles.closeButton}
+            >
+              <Ionicons name="close" size={24} color="#666" />
+            </TouchableOpacity>
+          </View>
+          
+          <ScrollView style={styles.modalBody}>
+            <View style={styles.filterSection}>
+              <Text style={styles.filterSectionTitle}>Bits</Text>
+              <View style={styles.filterOptions}>
+                {bits.map((option) => (
+                  <TouchableOpacity
+                    key={option.value}
+                    style={[
+                      styles.filterOption,
+                      tempBitsFilter === option.value && styles.filterOptionSelected
+                    ]}
+                    onPress={() => setTempBitsFilter(option.value)}
+                  >
+                    <Text style={[
+                      styles.filterOptionText,
+                      tempBitsFilter === option.value && styles.filterOptionTextSelected
+                    ]}>
+                      {option.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          </ScrollView>
+
+          <View style={styles.filterActions}>
+            <TouchableOpacity 
+              style={styles.clearButton}
+              onPress={handleClearAllFilters}
+            >
+              <Text style={styles.clearButtonText}>Clear All</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.applyButton}
+              onPress={handleApplyFilters}
+            >
+              <Text style={styles.applyButtonText}>Apply Filters</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
     </SafeAreaView>
   );
 }
@@ -215,56 +280,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f8f9fa',
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 15,
-    backgroundColor: '#ffffff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e5ea',
-  },
-  bitsChooserContainer: {
-    position: 'relative',
-    zIndex: 1000,
-    width: '100%',
-  },
-  dropdownPicker: {
-    backgroundColor: '#f0f8ff',
-    borderColor: '#007AFF',
-    borderWidth: 1,
-    borderRadius: 20,
-    minHeight: 40,
-  },
-  dropdownContainer: {
-    backgroundColor: '#ffffff',
-    borderColor: '#e5e5ea',
-    borderWidth: 1,
-    borderRadius: 12,
-    marginTop: 5,
-    elevation: 8,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-  },
-  dropdownText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#007AFF',
-  },
-  arrowIcon: {
-    width: 16,
-    height: 16,
-  },
-  tickIcon: {
-    width: 16,
-    height: 16,
   },
   searchContainer: {
     paddingHorizontal: 20,
@@ -284,6 +299,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#333',
     marginLeft: 10,
+  },
+  filterButton: {
+    padding: 5,
   },
   retailersContainer: {
     flex: 1,
@@ -387,5 +405,122 @@ const styles = StyleSheet.create({
   loadingText: {
     fontSize: 16,
     color: '#666666',
+  },
+  modal: {
+    justifyContent: 'flex-end',
+    margin: 0,
+    padding: 0,
+  },
+  customBackdrop: {
+    position: 'absolute',
+    top: StatusBar.currentHeight ? -StatusBar.currentHeight : 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    zIndex: 0,
+  },
+  modalContent: {
+    backgroundColor: '#ffffff',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '80%',
+    minHeight: '50%',
+    zIndex: 1,
+    position: 'relative',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 15,
+    paddingHorizontal: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e5ea',
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#1a1a1a',
+  },
+  closeButton: {
+    padding: 5,
+  },
+  modalBody: {
+    maxHeight: 400,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+  },
+  filterSection: {
+    marginBottom: 20,
+  },
+  filterSectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333333',
+    marginBottom: 10,
+  },
+  filterOptions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  filterOption: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#e5e5ea',
+    backgroundColor: '#ffffff',
+  },
+  filterOptionSelected: {
+    backgroundColor: '#007AFF',
+    borderColor: '#007AFF',
+  },
+  filterOptionText: {
+    fontSize: 14,
+    color: '#666666',
+    fontWeight: '500',
+  },
+  filterOptionTextSelected: {
+    color: '#ffffff',
+    fontWeight: '600',
+  },
+  filterActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 20,
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+  },
+  clearButton: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e5e5ea',
+    backgroundColor: '#ffffff',
+    marginRight: 10,
+  },
+  clearButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#666666',
+    textAlign: 'center',
+  },
+  applyButton: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    backgroundColor: '#007AFF',
+    marginLeft: 10,
+  },
+  applyButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#ffffff',
+    textAlign: 'center',
   },
 });

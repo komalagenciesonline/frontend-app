@@ -3,7 +3,6 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import { Alert, Dimensions, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
-import DropDownPicker from 'react-native-dropdown-picker';
 import Modal from 'react-native-modal';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { api, Order } from '../../utils/api';
@@ -14,12 +13,16 @@ export default function OrdersScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [searchQuery, setSearchQuery] = useState('');
-  const [open, setOpen] = useState(false);
-  const [value, setValue] = useState('all');
   
   // Filter states
   const [statusFilter, setStatusFilter] = useState('all');
   const [dateFilter, setDateFilter] = useState('all');
+  const [bitsFilter, setBitsFilter] = useState('all');
+  
+  // Temporary filter states for modal (not applied until Apply is clicked)
+  const [tempStatusFilter, setTempStatusFilter] = useState('all');
+  const [tempDateFilter, setTempDateFilter] = useState('all');
+  const [tempBitsFilter, setTempBitsFilter] = useState('all');
   
   // Modal visibility state
   const [isModalVisible, setModalVisible] = useState(false);
@@ -28,26 +31,13 @@ export default function OrdersScreen() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Bits options for dropdown picker
-  const bits = [
-    { label: 'All Bits', value: 'all' },
-    { label: 'Turori', value: 'Turori' },
-    { label: 'Naldurg & Jalkot', value: 'Naldurg & Jalkot' },
-    { label: 'Gunjoti & Murum', value: 'Gunjoti & Murum' },
-    { label: 'Dalimb & Yenegur', value: 'Dalimb & Yenegur' },
-    { label: 'Sastur & Makhani', value: 'Sastur & Makhani' },
-    { label: 'Narangwadi & Killari', value: 'Narangwadi & Killari' },
-    { label: 'Andur', value: 'Andur' },
-    { label: 'Omerga', value: 'Omerga' },
-  ];
-
   // Load orders on component mount
   useEffect(() => {
     const loadOrders = async () => {
       try {
         setIsLoading(true);
         const ordersData = await api.orders.getAll(
-          value === 'all' ? undefined : value,
+          bitsFilter === 'all' ? undefined : bitsFilter,
           statusFilter === 'all' ? undefined : statusFilter,
           searchQuery || undefined
         );
@@ -61,7 +51,7 @@ export default function OrdersScreen() {
     };
 
     loadOrders();
-  }, [value, statusFilter, searchQuery]);
+  }, [bitsFilter, statusFilter, searchQuery]);
 
   // Reload orders when screen comes into focus
   useFocusEffect(
@@ -69,7 +59,7 @@ export default function OrdersScreen() {
       const loadOrders = async () => {
         try {
           const ordersData = await api.orders.getAll(
-            value === 'all' ? undefined : value,
+            bitsFilter === 'all' ? undefined : bitsFilter,
             statusFilter === 'all' ? undefined : statusFilter,
             searchQuery || undefined
           );
@@ -80,7 +70,7 @@ export default function OrdersScreen() {
       };
 
       loadOrders();
-    }, [value, statusFilter, searchQuery])
+    }, [bitsFilter, statusFilter, searchQuery])
   );
 
   // Handle delete button press
@@ -121,40 +111,31 @@ export default function OrdersScreen() {
     });
   };
 
-  const filteredOrders = orders;
+  // Handle opening filter modal - copy current filters to temp state
+  const handleOpenFilterModal = () => {
+    setTempStatusFilter(statusFilter);
+    setTempDateFilter(dateFilter);
+    setTempBitsFilter(bitsFilter);
+    setModalVisible(true);
+  };
 
-  const BitsChooser = () => (
-    <View style={styles.bitsChooserContainer}>
-      <DropDownPicker
-        open={open}
-        value={value}
-        items={bits}
-        setOpen={setOpen}
-        setValue={setValue}
-        placeholder="Select Bit"
-        style={styles.dropdownPicker}
-        dropDownContainerStyle={styles.dropdownContainer}
-        textStyle={styles.dropdownText}
-        arrowIconStyle={styles.arrowIcon}
-        tickIconStyle={styles.tickIcon}
-        zIndex={3000}
-        zIndexInverse={1000}
-        dropDownDirection="BOTTOM"
-        closeAfterSelecting={true}
-        showTickIcon={true}
-        showArrowIcon={true}
-        searchable={false}
-        listMode="MODAL"
-        maxHeight={400}
-        modalProps={{
-          animationType: "slide",
-          transparent: true,
-        }}
-        modalTitle="Select Bit"
-        modalAnimationType="slide"
-      />
-    </View>
-  );
+  // Handle applying filters
+  const handleApplyFilters = () => {
+    setStatusFilter(tempStatusFilter);
+    setDateFilter(tempDateFilter);
+    setBitsFilter(tempBitsFilter);
+    setModalVisible(false);
+  };
+
+  // Handle clearing all filters
+  const handleClearAllFilters = () => {
+    setTempStatusFilter('all');
+    setTempDateFilter('all');
+    setTempBitsFilter('all');
+  };
+
+  // Since we're now filtering on the server side, we can use orders directly
+  const filteredOrders = orders;
 
   const SearchBar = () => (
     <View style={styles.searchContainer}>
@@ -169,7 +150,7 @@ export default function OrdersScreen() {
         />
         <TouchableOpacity 
           style={styles.filterButton}
-          onPress={() => setModalVisible(true)}
+          onPress={handleOpenFilterModal}
         >
           <Ionicons name="filter-outline" size={20} color="#666" />
         </TouchableOpacity>
@@ -189,6 +170,18 @@ export default function OrdersScreen() {
     { label: 'Today', value: 'today' },
     { label: 'This Week', value: 'week' },
     { label: 'This Month', value: 'month' },
+  ];
+
+  const bitsOptions = [
+    { label: 'All Bits', value: 'all' },
+    { label: 'Turori', value: 'Turori' },
+    { label: 'Naldurg & Jalkot', value: 'Naldurg & Jalkot' },
+    { label: 'Gunjoti & Murum', value: 'Gunjoti & Murum' },
+    { label: 'Dalimb & Yenegur', value: 'Dalimb & Yenegur' },
+    { label: 'Sastur & Makhani', value: 'Sastur & Makhani' },
+    { label: 'Narangwadi & Killari', value: 'Narangwadi & Killari' },
+    { label: 'Andur', value: 'Andur' },
+    { label: 'Omerga', value: 'Omerga' },
   ];
 
   const OrderCard = ({ order }: { order: Order }) => (
@@ -254,11 +247,6 @@ export default function OrdersScreen() {
     <SafeAreaView style={styles.container} edges={['top']}>
       <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
       
-      {/* Header with Bits Chooser */}
-      <View style={styles.header}>
-        <BitsChooser />
-      </View>
-
       {/* Search Bar */}
       <SearchBar />
 
@@ -316,6 +304,29 @@ export default function OrdersScreen() {
           
           <ScrollView style={styles.modalBody}>
             <View style={styles.filterSection}>
+              <Text style={styles.filterSectionTitle}>Bits</Text>
+              <View style={styles.filterOptions}>
+                {bitsOptions.map((option) => (
+                  <TouchableOpacity
+                    key={option.value}
+                    style={[
+                      styles.filterOption,
+                      tempBitsFilter === option.value && styles.filterOptionSelected
+                    ]}
+                    onPress={() => setTempBitsFilter(option.value)}
+                  >
+                    <Text style={[
+                      styles.filterOptionText,
+                      tempBitsFilter === option.value && styles.filterOptionTextSelected
+                    ]}>
+                      {option.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            <View style={styles.filterSection}>
               <Text style={styles.filterSectionTitle}>Status</Text>
               <View style={styles.filterOptions}>
                 {statusOptions.map((option) => (
@@ -323,13 +334,13 @@ export default function OrdersScreen() {
                     key={option.value}
                     style={[
                       styles.filterOption,
-                      statusFilter === option.value && styles.filterOptionSelected
+                      tempStatusFilter === option.value && styles.filterOptionSelected
                     ]}
-                    onPress={() => setStatusFilter(option.value)}
+                    onPress={() => setTempStatusFilter(option.value)}
                   >
                     <Text style={[
                       styles.filterOptionText,
-                      statusFilter === option.value && styles.filterOptionTextSelected
+                      tempStatusFilter === option.value && styles.filterOptionTextSelected
                     ]}>
                       {option.label}
                     </Text>
@@ -346,13 +357,13 @@ export default function OrdersScreen() {
                     key={option.value}
                     style={[
                       styles.filterOption,
-                      dateFilter === option.value && styles.filterOptionSelected
+                      tempDateFilter === option.value && styles.filterOptionSelected
                     ]}
-                    onPress={() => setDateFilter(option.value)}
+                    onPress={() => setTempDateFilter(option.value)}
                   >
                     <Text style={[
                       styles.filterOptionText,
-                      dateFilter === option.value && styles.filterOptionTextSelected
+                      tempDateFilter === option.value && styles.filterOptionTextSelected
                     ]}>
                       {option.label}
                     </Text>
@@ -365,16 +376,13 @@ export default function OrdersScreen() {
           <View style={styles.filterActions}>
             <TouchableOpacity 
               style={styles.clearButton}
-              onPress={() => {
-                setStatusFilter('all');
-                setDateFilter('all');
-              }}
+              onPress={handleClearAllFilters}
             >
               <Text style={styles.clearButtonText}>Clear All</Text>
             </TouchableOpacity>
             <TouchableOpacity 
               style={styles.applyButton}
-              onPress={() => setModalVisible(false)}
+              onPress={handleApplyFilters}
             >
               <Text style={styles.applyButtonText}>Apply Filters</Text>
             </TouchableOpacity>
@@ -391,56 +399,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f8f9fa',
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 15,
-    backgroundColor: '#ffffff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e5ea',
-  },
-  bitsChooserContainer: {
-    position: 'relative',
-    zIndex: 1000,
-    width: '60%',
-  },
-  dropdownPicker: {
-    backgroundColor: '#f0f8ff',
-    borderColor: '#007AFF',
-    borderWidth: 1,
-    borderRadius: 20,
-    minHeight: 40,
-  },
-  dropdownContainer: {
-    backgroundColor: '#ffffff',
-    borderColor: '#e5e5ea',
-    borderWidth: 1,
-    borderRadius: 12,
-    marginTop: 5,
-    elevation: 8,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-  },
-  dropdownText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#007AFF',
-  },
-  arrowIcon: {
-    width: 16,
-    height: 16,
-  },
-  tickIcon: {
-    width: 16,
-    height: 16,
   },
   searchContainer: {
     paddingHorizontal: 20,
