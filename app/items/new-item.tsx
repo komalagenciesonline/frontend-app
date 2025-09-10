@@ -1,19 +1,46 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { Alert, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import DropDownPicker from 'react-native-dropdown-picker';
+import { Alert, Animated, Pressable, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { api, Brand } from '../../utils/api';
+
+const ACCENT = "#3D5AFE";
 
 export default function NewItemScreen() {
   const router = useRouter();
   const [productName, setProductName] = useState('');
-  const [open, setOpen] = useState(false);
+  const [brandDropdownOpen, setBrandDropdownOpen] = useState(false);
   const [selectedBrand, setSelectedBrand] = useState('');
   const [brands, setBrands] = useState<Brand[]>([]);
   const [isCreating, setIsCreating] = useState(false);
   const [newBrandName, setNewBrandName] = useState('');
+  
+  // Animation for dropdown chevron
+  const [brandChevronAnim] = useState(new Animated.Value(0));
+
+  // Dropdown animation functions
+  const openBrandDropdown = () => {
+    setBrandDropdownOpen(true);
+    Animated.timing(brandChevronAnim, {
+      toValue: 1,
+      duration: 180,
+      useNativeDriver: true,
+    }).start();
+  };
+  
+  const closeBrandDropdown = () => {
+    Animated.timing(brandChevronAnim, {
+      toValue: 0,
+      duration: 180,
+      useNativeDriver: true,
+    }).start(() => setBrandDropdownOpen(false));
+  };
+  
+  const brandChevronRotate = brandChevronAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '180deg'],
+  });
 
   // Load brands on component mount
   React.useEffect(() => {
@@ -28,12 +55,6 @@ export default function NewItemScreen() {
     };
     loadBrands();
   }, []);
-
-  // Create brand options for dropdown
-  const brandOptions = brands.map(brand => ({
-    label: brand.name,
-    value: brand.name
-  }));
 
   const handleCreateProduct = async () => {
     // Validation
@@ -125,35 +146,66 @@ export default function NewItemScreen() {
           {/* Brand Selection */}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Brand Name *</Text>
-            <View style={styles.dropdownContainer}>
-               <DropDownPicker
-                 open={open}
-                 value={selectedBrand}
-                 items={brandOptions}
-                 setOpen={setOpen}
-                 setValue={setSelectedBrand}
-                 placeholder=""
-                 style={styles.dropdownPicker}
-                 dropDownContainerStyle={styles.dropdownContainerStyle}
-                 textStyle={styles.dropdownText}
-                 arrowIconStyle={styles.arrowIcon}
-                 tickIconStyle={styles.tickIcon}
-                 zIndex={3000}
-                 zIndexInverse={1000}
-                 dropDownDirection="BOTTOM"
-                 closeAfterSelecting={true}
-                 showTickIcon={true}
-                 showArrowIcon={true}
-                 searchable={false}
-                 listMode="MODAL"
-                 maxHeight={300}
-                 modalProps={{
-                   animationType: "slide",
-                   transparent: true,
-                 }}
-                 modalTitle="Select Brand"
-                 modalAnimationType="slide"
-               />
+            <View style={[styles.floatingLabelInputWrap, { position: 'relative' }]}>
+              <Pressable 
+                style={[styles.dropdownPicker, styles.inputRow, styles.dropdownPickerEmphasis]} 
+                onPress={brandDropdownOpen ? closeBrandDropdown : openBrandDropdown}
+              >
+                <Text style={styles.inputIcon}>🏷️</Text>
+                <Text style={styles.dropdownPickerText}>
+                  {selectedBrand || 'Select Brand'}
+                </Text>
+                <Animated.View style={{ marginLeft: 8, transform: [{ rotate: brandChevronRotate }] }}>
+                  <Ionicons name="chevron-down" size={18} color={ACCENT} />
+                </Animated.View>
+              </Pressable>
+              {brandDropdownOpen && (
+                <>
+                  <Pressable 
+                    style={styles.dropdownOverlay} 
+                    onPress={closeBrandDropdown}
+                  />
+                  <Animated.View
+                    style={[
+                      styles.inlineDropdown,
+                      {
+                        opacity: brandChevronAnim,
+                        transform: [
+                          { translateY: brandChevronAnim.interpolate({ inputRange: [0, 1], outputRange: [-10, 0] }) }
+                        ]
+                      }
+                    ]}
+                  >
+                    <ScrollView 
+                      style={styles.dropdownScrollView}
+                      showsVerticalScrollIndicator={false}
+                      nestedScrollEnabled={true}
+                    >
+                      {brands.map((brand) => (
+                        <Pressable
+                          key={brand._id}
+                          style={({ pressed }) => [
+                            styles.inlineDropdownOption,
+                            selectedBrand === brand.name && styles.inlineDropdownOptionSelected,
+                            pressed && { opacity: 0.7 }
+                          ]}
+                          onPress={() => {
+                            setSelectedBrand(brand.name);
+                            closeBrandDropdown();
+                          }}
+                        >
+                          <Text style={[
+                            styles.inlineDropdownOptionText,
+                            selectedBrand === brand.name && styles.inlineDropdownOptionTextSelected
+                          ]}>
+                            {brand.name}
+                          </Text>
+                        </Pressable>
+                      ))}
+                    </ScrollView>
+                  </Animated.View>
+                </>
+              )}
             </View>
           </View>
 
@@ -260,44 +312,100 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e5e5ea',
   },
-  dropdownContainer: {
-    position: 'relative',
-    zIndex: 1000,
+  floatingLabelInputWrap: {
+    marginBottom: 16,
+  },
+  inputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f3f6fa',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e5e5ea',
+    marginBottom: 2,
+  },
+  inputIcon: {
+    marginLeft: 12,
+    marginRight: 8,
+    fontSize: 18,
   },
   dropdownPicker: {
-    backgroundColor: '#ffffff',
-    borderColor: '#e5e5ea',
-    borderWidth: 1,
+    backgroundColor: '#f3f6fa',
     borderRadius: 12,
-    minHeight: 50,
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    marginBottom: 4,
+    borderWidth: 1,
+    borderColor: '#e5e5ea',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
-  dropdownContainerStyle: {
-    backgroundColor: '#ffffff',
-    borderColor: '#e5e5ea',
-    borderWidth: 1,
-    borderRadius: 12,
-    marginTop: 5,
-    elevation: 8,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.15,
+  dropdownPickerText: {
+    color: '#1a1a1a',
+    fontSize: 15,
+    fontWeight: '500',
+    flex: 1,
+  },
+  dropdownPickerEmphasis: {
+    borderWidth: 1.5,
+    borderColor: ACCENT,
+    shadowColor: ACCENT,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
     shadowRadius: 8,
+    elevation: 4,
   },
-  dropdownText: {
+  inlineDropdown: {
+    position: 'absolute',
+    top: '100%',
+    left: 0,
+    right: 0,
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    marginTop: 4,
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.07,
+    shadowRadius: 6,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: '#e5e5ea',
+    zIndex: 1000,
+  },
+  inlineDropdownOption: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    marginHorizontal: 4,
+    marginVertical: 2,
+  },
+  inlineDropdownOptionSelected: {
+    backgroundColor: ACCENT,
+  },
+  inlineDropdownOptionText: {
+    color: '#1a1a1a',
     fontSize: 16,
     fontWeight: '500',
-    color: '#1a1a1a',
+    textAlign: 'center',
   },
-  arrowIcon: {
-    width: 16,
-    height: 16,
+  inlineDropdownOptionTextSelected: {
+    color: '#fff',
+    fontWeight: '700',
   },
-  tickIcon: {
-    width: 16,
-    height: 16,
+  dropdownOverlay: {
+    position: 'absolute',
+    top: -1000,
+    left: -1000,
+    right: -1000,
+    bottom: -1000,
+    backgroundColor: 'transparent',
+    zIndex: 999,
+  },
+  dropdownScrollView: {
+    maxHeight: 200,
   },
   bottomContainer: {
     backgroundColor: '#ffffff',

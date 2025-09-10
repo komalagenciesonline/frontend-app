@@ -51,7 +51,7 @@ export default function OrdersScreen() {
     };
 
     loadOrders();
-  }, [bitsFilter, statusFilter, searchQuery]);
+  }, [bitsFilter, statusFilter, searchQuery, dateFilter]);
 
   // Reload orders when screen comes into focus
   useFocusEffect(
@@ -70,7 +70,7 @@ export default function OrdersScreen() {
       };
 
       loadOrders();
-    }, [bitsFilter, statusFilter, searchQuery])
+    }, [bitsFilter, statusFilter, searchQuery, dateFilter])
   );
 
   // Handle delete button press
@@ -134,8 +134,28 @@ export default function OrdersScreen() {
     setTempBitsFilter('all');
   };
 
-  // Since we're now filtering on the server side, we can use orders directly
-  const filteredOrders = orders;
+  // Apply client-side date filtering
+  const filteredOrders = orders.filter(order => {
+    if (dateFilter === 'all') return true;
+    
+    const orderDate = new Date(order.date.split('/').reverse().join('-')); // Convert DD/MM/YYYY to YYYY-MM-DD
+    const today = new Date();
+    const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const startOfWeek = new Date(today);
+    startOfWeek.setDate(today.getDate() - today.getDay()); // Start of current week
+    const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    
+    switch (dateFilter) {
+      case 'today':
+        return orderDate >= startOfToday;
+      case 'week':
+        return orderDate >= startOfWeek;
+      case 'month':
+        return orderDate >= startOfMonth;
+      default:
+        return true;
+    }
+  });
 
   const SearchBar = () => (
     <View style={styles.searchContainer}>
@@ -161,8 +181,8 @@ export default function OrdersScreen() {
   // Filter options data
   const statusOptions = [
     { label: 'All Status', value: 'all' },
-    { label: 'Pending', value: 'pending' },
-    { label: 'Completed', value: 'completed' },
+    { label: 'Pending', value: 'Pending' },
+    { label: 'Completed', value: 'Completed' },
   ];
 
   const dateOptions = [

@@ -62,21 +62,7 @@ export default function DashboardScreen() {
   // Calculate stats from real data
   const stats = {
     totalOrders: orders.length,
-    totalItems: (() => {
-      // Count unique products across all orders
-      // Use productName + brandName as unique identifier since some items have null productId
-      const uniqueProducts = new Set();
-      orders.forEach(order => {
-        if (order.items) {
-          order.items.forEach(item => {
-            // Create a unique key using productName + brandName
-            const uniqueKey = `${item.productName}-${item.brandName}`;
-            uniqueProducts.add(uniqueKey);
-          });
-        }
-      });
-      return uniqueProducts.size;
-    })(),
+    completedOrders: orders.filter(order => order.status === 'Completed').length,
     pendingOrders: orders.filter(order => order.status === 'Pending').length,
     totalBits: bits.length, // Use hardcoded bits count (same as retailers.tsx)
   };
@@ -142,9 +128,9 @@ export default function DashboardScreen() {
           color="#007AFF"
         />
         <StatCard
-          title="Total Items"
-          value={stats.totalItems}
-          icon="cube-outline"
+          title="Completed Orders"
+          value={stats.completedOrders}
+          icon="checkmark-circle-outline"
           color="#34C759"
         />
         <StatCard

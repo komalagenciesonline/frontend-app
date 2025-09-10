@@ -172,7 +172,7 @@ export default function RetailersScreen() {
       <ScrollView style={styles.retailersContainer} showsVerticalScrollIndicator={false}>
         <View style={styles.retailersHeader}>
           <Text style={styles.retailersTitle}>
-            Retailers ({filteredRetailers.length})
+            Retailers ({retailers.length})
           </Text>
           <TouchableOpacity 
             style={styles.addButton}
@@ -187,8 +187,8 @@ export default function RetailersScreen() {
             <View style={styles.loadingState}>
               <Text style={styles.loadingText}>Loading retailers...</Text>
             </View>
-          ) : filteredRetailers.length > 0 ? (
-            filteredRetailers.map((retailer) => (
+          ) : retailers.length > 0 ? (
+            retailers.map((retailer) => (
               <RetailerCard key={retailer._id} retailer={retailer} />
             ))
           ) : (
