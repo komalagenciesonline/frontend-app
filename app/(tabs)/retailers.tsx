@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import React, { useCallback, useState } from 'react';
-import { Alert, Dimensions, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
+import { ActivityIndicator, Alert, Dimensions, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
 import Modal from 'react-native-modal';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { api, Retailer } from '../../utils/api';
@@ -185,6 +185,7 @@ export default function RetailersScreen() {
         <View style={styles.retailersList}>
           {isLoading ? (
             <View style={styles.loadingState}>
+              <ActivityIndicator size="large" color="#007AFF" />
               <Text style={styles.loadingText}>Loading retailers...</Text>
             </View>
           ) : retailers.length > 0 ? (
@@ -401,6 +402,7 @@ const styles = StyleSheet.create({
   loadingState: {
     alignItems: 'center',
     paddingVertical: 40,
+    gap: 12,
   },
   loadingText: {
     fontSize: 16,

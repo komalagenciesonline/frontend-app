@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
-import { Alert, Dimensions, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
+import { ActivityIndicator, Alert, Dimensions, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
 import Modal from 'react-native-modal';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { api, Order } from '../../utils/api';
@@ -279,18 +279,23 @@ export default function OrdersScreen() {
         </View>
         
         <View style={styles.ordersList}>
-          {filteredOrders.map((order) => (
-            <OrderCard key={order._id} order={order} />
-          ))}
+          {isLoading ? (
+            <View style={styles.loadingState}>
+              <ActivityIndicator size="large" color="#007AFF" />
+              <Text style={styles.loadingText}>Loading orders...</Text>
+            </View>
+          ) : filteredOrders.length > 0 ? (
+            filteredOrders.map((order) => (
+              <OrderCard key={order._id} order={order} />
+            ))
+          ) : (
+            <View style={styles.emptyState}>
+              <Ionicons name="receipt-outline" size={64} color="#ccc" />
+              <Text style={styles.emptyText}>No orders found</Text>
+              <Text style={styles.emptySubtext}>Try adjusting your search or bit selection</Text>
+            </View>
+          )}
         </View>
-        
-        {filteredOrders.length === 0 && (
-          <View style={styles.emptyState}>
-            <Ionicons name="receipt-outline" size={64} color="#ccc" />
-            <Text style={styles.emptyText}>No orders found</Text>
-            <Text style={styles.emptySubtext}>Try adjusting your search or bit selection</Text>
-          </View>
-        )}
       </ScrollView>
 
       {/* Filter Modal */}
@@ -530,6 +535,15 @@ const styles = StyleSheet.create({
   },
   detailText: {
     fontSize: 14,
+    color: '#666666',
+  },
+  loadingState: {
+    alignItems: 'center',
+    paddingVertical: 40,
+    gap: 12,
+  },
+  loadingText: {
+    fontSize: 16,
     color: '#666666',
   },
   emptyState: {

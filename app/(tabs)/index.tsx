@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
-import { ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { api, Order } from '../../utils/api';
 
@@ -159,6 +159,7 @@ export default function DashboardScreen() {
         <View style={styles.ordersList}>
           {isLoading ? (
             <View style={styles.loadingState}>
+              <ActivityIndicator size="large" color="#007AFF" />
               <Text style={styles.loadingText}>Loading orders...</Text>
             </View>
           ) : recentOrders.length > 0 ? (
@@ -318,6 +319,7 @@ const styles = StyleSheet.create({
   loadingState: {
     alignItems: 'center',
     paddingVertical: 20,
+    gap: 12,
   },
   loadingText: {
     fontSize: 16,
