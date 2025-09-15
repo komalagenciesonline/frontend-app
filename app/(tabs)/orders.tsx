@@ -1,8 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect } from '@react-navigation/native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Dimensions, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
+import { ActivityIndicator, Alert, Dimensions, RefreshControl, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
 import Modal from 'react-native-modal';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { api, Order } from '../../utils/api';
@@ -12,12 +11,20 @@ const { height: screenHeight, width: screenWidth } = Dimensions.get('screen');
 export default function OrdersScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const [searchQuery, setSearchQuery] = useState('');
+  const { bitsFilter: incomingBitsFilter, statusFilter: incomingStatusFilter, dateFilter: incomingDateFilter, searchQuery: incomingSearchQuery } = useLocalSearchParams<{
+    bitsFilter?: string;
+    statusFilter?: string;
+    dateFilter?: string;
+    searchQuery?: string;
+  }>();
   
-  // Filter states
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [dateFilter, setDateFilter] = useState('all');
-  const [bitsFilter, setBitsFilter] = useState('all');
+  const [searchQuery, setSearchQuery] = useState(incomingSearchQuery || '');
+  const [refreshing, setRefreshing] = useState(false);
+  
+  // Filter states - initialize with incoming params if available
+  const [statusFilter, setStatusFilter] = useState(incomingStatusFilter || 'all');
+  const [dateFilter, setDateFilter] = useState(incomingDateFilter || 'all');
+  const [bitsFilter, setBitsFilter] = useState(incomingBitsFilter || 'all');
   
   // Temporary filter states for modal (not applied until Apply is clicked)
   const [tempStatusFilter, setTempStatusFilter] = useState('all');
@@ -31,47 +38,49 @@ export default function OrdersScreen() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Load orders on component mount
+  // Simple load orders function
+  const loadOrders = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      const ordersData = await api.orders.getAll(
+        bitsFilter === 'all' ? undefined : bitsFilter,
+        statusFilter === 'all' ? undefined : statusFilter,
+        searchQuery || undefined
+      );
+      setOrders(ordersData);
+    } catch (error) {
+      console.error('Error loading orders:', error);
+      Alert.alert('Error', 'Failed to load orders. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [bitsFilter, statusFilter, searchQuery]);
+
+  // Load orders ONLY on initial mount
   useEffect(() => {
-    const loadOrders = async () => {
-      try {
-        setIsLoading(true);
-        const ordersData = await api.orders.getAll(
-          bitsFilter === 'all' ? undefined : bitsFilter,
-          statusFilter === 'all' ? undefined : statusFilter,
-          searchQuery || undefined
-        );
-        setOrders(ordersData);
-      } catch (error) {
-        console.error('Error loading orders:', error);
-        Alert.alert('Error', 'Failed to load orders. Please try again.');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
     loadOrders();
-  }, [bitsFilter, statusFilter, searchQuery, dateFilter]);
+  }, []);
 
-  // Reload orders when screen comes into focus
-  useFocusEffect(
-    useCallback(() => {
-      const loadOrders = async () => {
-        try {
-          const ordersData = await api.orders.getAll(
-            bitsFilter === 'all' ? undefined : bitsFilter,
-            statusFilter === 'all' ? undefined : statusFilter,
-            searchQuery || undefined
-          );
-          setOrders(ordersData);
-        } catch (error) {
-          console.error('Error loading orders:', error);
-        }
-      };
-
+  // Handle incoming filter parameters and refresh data when they change
+  useEffect(() => {
+    if (incomingBitsFilter || incomingStatusFilter || incomingDateFilter || incomingSearchQuery !== undefined) {
+      // Update states with incoming parameters
+      setBitsFilter(incomingBitsFilter || 'all');
+      setStatusFilter(incomingStatusFilter || 'all');
+      setDateFilter(incomingDateFilter || 'all');
+      setSearchQuery(incomingSearchQuery || '');
+      
+      // Refresh data with new filters
       loadOrders();
-    }, [bitsFilter, statusFilter, searchQuery, dateFilter])
-  );
+    }
+  }, [incomingBitsFilter, incomingStatusFilter, incomingDateFilter, incomingSearchQuery, loadOrders]);
+
+  // Pull to refresh handler
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await loadOrders();
+    setRefreshing(false);
+  }, [loadOrders]);
 
   // Handle delete button press
   const handleDeletePress = (order: Order) => {
@@ -89,8 +98,8 @@ export default function OrdersScreen() {
           onPress: async () => {
             try {
               await api.orders.delete(order._id);
-              // Update local state
-              setOrders(orders.filter(o => o._id !== order._id));
+              // Refresh the orders list after deletion
+              await loadOrders();
             } catch (error) {
               console.error('Error deleting order:', error);
               Alert.alert('Error', 'Failed to delete order. Please try again.');
@@ -106,7 +115,12 @@ export default function OrdersScreen() {
     router.push({
       pathname: '/orders/edit-order',
       params: {
-        orderData: JSON.stringify(order)
+        orderData: JSON.stringify(order),
+        // Pass current filter states to preserve them
+        bitsFilter: bitsFilter,
+        statusFilter: statusFilter,
+        dateFilter: dateFilter,
+        searchQuery: searchQuery
       }
     });
   };
@@ -125,6 +139,8 @@ export default function OrdersScreen() {
     setDateFilter(tempDateFilter);
     setBitsFilter(tempBitsFilter);
     setModalVisible(false);
+    // Refresh data when filters are applied
+    loadOrders();
   };
 
   // Handle clearing all filters
@@ -167,6 +183,7 @@ export default function OrdersScreen() {
           placeholderTextColor="#999"
           value={searchQuery}
           onChangeText={setSearchQuery}
+          onSubmitEditing={() => loadOrders()}
         />
         <TouchableOpacity 
           style={styles.filterButton}
@@ -210,7 +227,12 @@ export default function OrdersScreen() {
       onPress={() => router.push({
         pathname: '/orders/order-details',
         params: {
-          orderData: JSON.stringify(order)
+          orderData: JSON.stringify(order),
+          // Pass current filter states to preserve them
+          bitsFilter: bitsFilter,
+          statusFilter: statusFilter,
+          dateFilter: dateFilter,
+          searchQuery: searchQuery
         }
       })}
     >
@@ -271,7 +293,18 @@ export default function OrdersScreen() {
       <SearchBar />
 
       {/* Orders List */}
-      <ScrollView style={styles.ordersContainer} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        style={styles.ordersContainer} 
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={['#007AFF']}
+            tintColor="#007AFF"
+          />
+        }
+      >
         <View style={styles.ordersHeader}>
           <Text style={styles.ordersTitle}>
             Orders ({filteredOrders.length})

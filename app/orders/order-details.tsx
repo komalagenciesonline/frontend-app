@@ -7,8 +7,12 @@ import { Order, OrderItem } from '../../utils/api';
 
 export default function OrderDetailsScreen() {
   const router = useRouter();
-  const { orderData } = useLocalSearchParams<{ 
+  const { orderData, bitsFilter, statusFilter, dateFilter, searchQuery } = useLocalSearchParams<{ 
     orderData: string;
+    bitsFilter?: string;
+    statusFilter?: string;
+    dateFilter?: string;
+    searchQuery?: string;
   }>();
   
   const [order, setOrder] = React.useState<Order | null>(null);
@@ -70,7 +74,15 @@ export default function OrderDetailsScreen() {
       <View style={styles.header}>
         <TouchableOpacity 
           style={styles.backButton}
-          onPress={() => router.back()}
+          onPress={() => router.push({
+            pathname: '/(tabs)/orders',
+            params: {
+              bitsFilter: bitsFilter || 'all',
+              statusFilter: statusFilter || 'all',
+              dateFilter: dateFilter || 'all',
+              searchQuery: searchQuery || ''
+            }
+          })}
         >
           <Ionicons name="arrow-back" size={24} color="#007AFF" />
         </TouchableOpacity>

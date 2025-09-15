@@ -7,8 +7,12 @@ import { api, Brand, Order, OrderItem, Product } from '../../utils/api';
 
 export default function EditOrderScreen() {
   const router = useRouter();
-  const { orderData } = useLocalSearchParams<{ 
+  const { orderData, bitsFilter, statusFilter, dateFilter, searchQuery } = useLocalSearchParams<{ 
     orderData: string;
+    bitsFilter?: string;
+    statusFilter?: string;
+    dateFilter?: string;
+    searchQuery?: string;
   }>();
   
   const [isModalVisible, setIsModalVisible] = useState(false);
@@ -144,8 +148,17 @@ export default function EditOrderScreen() {
           {
             text: 'OK',
             onPress: () => {
-              // Navigate back to orders screen
-              router.push('/(tabs)/orders');
+              // Navigate back to orders screen with refresh trigger and preserved filters
+              router.push({
+                pathname: '/(tabs)/orders',
+                params: { 
+                  refreshTrigger: 'status_changed',
+                  bitsFilter: bitsFilter || 'all',
+                  statusFilter: statusFilter || 'all',
+                  dateFilter: dateFilter || 'all',
+                  searchQuery: searchQuery || ''
+                }
+              });
             }
           }
         ]
@@ -191,8 +204,17 @@ export default function EditOrderScreen() {
                   {
                     text: 'OK',
                     onPress: () => {
-                      // Navigate back to orders screen
-                      router.push('/(tabs)/orders');
+                      // Navigate back to orders screen with refresh trigger and preserved filters
+                      router.push({
+                        pathname: '/(tabs)/orders',
+                        params: { 
+                          refreshTrigger: 'status_changed',
+                          bitsFilter: bitsFilter || 'all',
+                          statusFilter: statusFilter || 'all',
+                          dateFilter: dateFilter || 'all',
+                          searchQuery: searchQuery || ''
+                        }
+                      });
                     }
                   }
                 ]
@@ -415,7 +437,15 @@ export default function EditOrderScreen() {
       <View style={styles.header}>
         <TouchableOpacity 
           style={styles.backButton}
-          onPress={() => router.back()}
+          onPress={() => router.push({
+            pathname: '/(tabs)/orders',
+            params: {
+              bitsFilter: bitsFilter || 'all',
+              statusFilter: statusFilter || 'all',
+              dateFilter: dateFilter || 'all',
+              searchQuery: searchQuery || ''
+            }
+          })}
         >
           <Ionicons name="arrow-back" size={24} color="#007AFF" />
         </TouchableOpacity>
