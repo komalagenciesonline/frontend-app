@@ -21,12 +21,14 @@ export default function OrderSummaryScreen() {
     retailerName, 
     retailerPhone, 
     retailerBit,
-    orderItems 
+    orderItems,
+    orderDate 
   } = useLocalSearchParams<{ 
     retailerName: string;
     retailerPhone: string;
     retailerBit: string;
     orderItems: string;
+    orderDate: string;
   }>();
 
   // Parse the order items from the URL params
@@ -50,7 +52,8 @@ export default function OrderSummaryScreen() {
         bit: retailerBit || 'Unknown Bit',
         totalItems: getTotalItems(),
         totalAmount: 0, // You can calculate this based on item prices if needed
-        items: parsedOrderItems
+        items: parsedOrderItems,
+        orderDate: orderDate
       });
 
       Alert.alert(
@@ -124,6 +127,17 @@ export default function OrderSummaryScreen() {
           <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>Phone:</Text>
             <Text style={styles.infoValue}>{retailerPhone || 'N/A'}</Text>
+          </View>
+          <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>Order Date:</Text>
+            <Text style={styles.infoValue}>
+              {orderDate ? new Date(orderDate).toLocaleDateString('en-US', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+              }) : 'N/A'}
+            </Text>
           </View>
         </View>
       </View>

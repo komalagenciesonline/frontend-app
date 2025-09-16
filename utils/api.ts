@@ -225,6 +225,7 @@ export const orderAPI = {
     totalItems: number;
     totalAmount: number;
     items?: OrderItem[];
+    orderDate?: string;
   }): Promise<Order> => {
     return apiCall<Order>('/orders', {
       method: 'POST',

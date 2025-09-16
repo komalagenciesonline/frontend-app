@@ -30,6 +30,8 @@ export default function NewOrderScreen() {
   const [brands, setBrands] = useState<Brand[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isDragging, setIsDragging] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [isDatePickerVisible, setIsDatePickerVisible] = useState(false);
 
   // Load products and brands data
   useEffect(() => {
@@ -103,7 +105,8 @@ export default function NewOrderScreen() {
         retailerName: retailerName || 'N/A',
         retailerPhone: retailerPhone || 'N/A',
         retailerBit: retailerBit || 'N/A',
-        orderItems: JSON.stringify(selectedItems)
+        orderItems: JSON.stringify(selectedItems),
+        orderDate: selectedDate.toISOString()
       }
     });
   };
@@ -299,6 +302,142 @@ export default function NewOrderScreen() {
     );
   };
 
+  const CustomDatePicker = () => {
+    const formatDate = (date: Date) => {
+      return date.toLocaleDateString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+    };
+
+    const generateCalendarDays = () => {
+      const today = new Date();
+      const currentMonth = selectedDate.getMonth();
+      const currentYear = selectedDate.getFullYear();
+      
+      const firstDayOfMonth = new Date(currentYear, currentMonth, 1);
+      const lastDayOfMonth = new Date(currentYear, currentMonth + 1, 0);
+      const firstDayWeekday = firstDayOfMonth.getDay();
+      
+      const days = [];
+      
+      // Add empty cells for days before the first day of the month
+      for (let i = 0; i < firstDayWeekday; i++) {
+        days.push(null);
+      }
+      
+      // Add days of the month
+      for (let day = 1; day <= lastDayOfMonth.getDate(); day++) {
+        days.push(day);
+      }
+      
+      return days;
+    };
+
+    const handleDateSelect = (day: number) => {
+      const newDate = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), day);
+      setSelectedDate(newDate);
+      setIsDatePickerVisible(false);
+    };
+
+    const navigateMonth = (direction: 'prev' | 'next') => {
+      const newDate = new Date(selectedDate);
+      if (direction === 'prev') {
+        newDate.setMonth(newDate.getMonth() - 1);
+      } else {
+        newDate.setMonth(newDate.getMonth() + 1);
+      }
+      setSelectedDate(newDate);
+    };
+
+    const calendarDays = generateCalendarDays();
+    const monthNames = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+    return (
+      <Modal
+        visible={isDatePickerVisible}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setIsDatePickerVisible(false)}
+      >
+        <SafeAreaView style={styles.datePickerContainer}>
+          {/* Header */}
+          <View style={styles.datePickerHeader}>
+            <TouchableOpacity onPress={() => setIsDatePickerVisible(false)}>
+              <Ionicons name="close" size={24} color="#666" />
+            </TouchableOpacity>
+            <Text style={styles.datePickerTitle}>Select Date</Text>
+            <TouchableOpacity onPress={() => {
+              setSelectedDate(new Date());
+              setIsDatePickerVisible(false);
+            }}>
+              <Text style={styles.todayButton}>Today</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Calendar */}
+          <View style={styles.calendarContainer}>
+            {/* Month Navigation */}
+            <View style={styles.monthNavigation}>
+              <TouchableOpacity onPress={() => navigateMonth('prev')}>
+                <Ionicons name="chevron-back" size={24} color="#007AFF" />
+              </TouchableOpacity>
+              <Text style={styles.monthYear}>
+                {monthNames[selectedDate.getMonth()]} {selectedDate.getFullYear()}
+              </Text>
+              <TouchableOpacity onPress={() => navigateMonth('next')}>
+                <Ionicons name="chevron-forward" size={24} color="#007AFF" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Day Names */}
+            <View style={styles.dayNamesRow}>
+              {dayNames.map((day) => (
+                <Text key={day} style={styles.dayName}>{day}</Text>
+              ))}
+            </View>
+
+            {/* Calendar Grid */}
+            <View style={styles.calendarGrid}>
+              {calendarDays.map((day, index) => (
+                <TouchableOpacity
+                  key={index}
+                  style={[
+                    styles.calendarDay,
+                    day === selectedDate.getDate() && styles.selectedDay,
+                    day === new Date().getDate() && 
+                    selectedDate.getMonth() === new Date().getMonth() && 
+                    selectedDate.getFullYear() === new Date().getFullYear() && 
+                    styles.todayDay
+                  ]}
+                  onPress={() => day && handleDateSelect(day)}
+                  disabled={!day}
+                >
+                  <Text style={[
+                    styles.dayText,
+                    day === selectedDate.getDate() && styles.selectedDayText,
+                    day === new Date().getDate() && 
+                    selectedDate.getMonth() === new Date().getMonth() && 
+                    selectedDate.getFullYear() === new Date().getFullYear() && 
+                    styles.todayDayText
+                  ]}>
+                    {day}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        </SafeAreaView>
+      </Modal>
+    );
+  };
+
   const BrandCard = ({ brand, drag, isActive }: { brand: Brand; drag: () => void; isActive: boolean }) => (
     <TouchableOpacity 
       style={[
@@ -366,6 +505,30 @@ export default function NewOrderScreen() {
         </View>
       </View>
 
+      {/* Date Picker Section */}
+      <View style={styles.dateSection}>
+        <View style={styles.dateSectionHeader}>
+          <Text style={styles.dateSectionTitle}>Order Date</Text>
+        </View>
+        <TouchableOpacity 
+          style={styles.datePickerButton}
+          onPress={() => setIsDatePickerVisible(true)}
+        >
+          <View style={styles.datePickerContent}>
+            <Ionicons name="calendar-outline" size={20} color="#007AFF" />
+            <Text style={styles.datePickerText}>
+              {selectedDate.toLocaleDateString('en-US', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+              })}
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color="#666" />
+        </TouchableOpacity>
+      </View>
+
       {/* Brands Section */}
       <View style={styles.brandsContainer}>
         <View style={styles.brandsHeader}>
@@ -415,6 +578,7 @@ export default function NewOrderScreen() {
       )}
 
       <ProductModal />
+      <CustomDatePicker />
     </SafeAreaView>
   );
 }
@@ -732,5 +896,136 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#666',
     marginTop: 12,
+  },
+  // Date Picker Styles
+  dateSection: {
+    backgroundColor: '#ffffff',
+    marginHorizontal: 20,
+    marginBottom: 10,
+    borderRadius: 16,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  dateSectionHeader: {
+    marginBottom: 12,
+  },
+  dateSectionTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#1a1a1a',
+  },
+  datePickerButton: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#f8f9fa',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#e5e5ea',
+  },
+  datePickerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  datePickerText: {
+    fontSize: 16,
+    color: '#1a1a1a',
+    marginLeft: 12,
+    fontWeight: '500',
+  },
+  // Date Picker Modal Styles
+  datePickerContainer: {
+    flex: 1,
+    backgroundColor: '#ffffff',
+  },
+  datePickerHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 15,
+    backgroundColor: '#007AFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e5ea',
+  },
+  datePickerTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#ffffff',
+  },
+  todayButton: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#ffffff',
+  },
+  calendarContainer: {
+    flex: 1,
+    padding: 20,
+  },
+  monthNavigation: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  monthYear: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#1a1a1a',
+  },
+  dayNamesRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginBottom: 10,
+  },
+  dayName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#666666',
+    width: 40,
+    textAlign: 'center',
+  },
+  calendarGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-around',
+  },
+  calendarDay: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginVertical: 2,
+    borderRadius: 20,
+  },
+  selectedDay: {
+    backgroundColor: '#007AFF',
+  },
+  todayDay: {
+    backgroundColor: '#f0f8ff',
+    borderWidth: 1,
+    borderColor: '#007AFF',
+  },
+  dayText: {
+    fontSize: 16,
+    color: '#1a1a1a',
+    fontWeight: '500',
+  },
+  selectedDayText: {
+    color: '#ffffff',
+    fontWeight: 'bold',
+  },
+  todayDayText: {
+    color: '#007AFF',
+    fontWeight: 'bold',
   },
 });
