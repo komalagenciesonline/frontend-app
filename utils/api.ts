@@ -18,6 +18,7 @@ export interface Brand {
   name: string;
   productCount: number;
   image: string;
+  order: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -187,6 +188,14 @@ export const brandAPI = {
   cleanup: async (): Promise<{ message: string }> => {
     return apiCall<{ message: string }>('/brands/cleanup', {
       method: 'POST',
+    });
+  },
+
+  // Update brand order
+  updateOrder: async (brandOrders: { brandId: string; order: number }[]): Promise<{ message: string }> => {
+    return apiCall<{ message: string }>('/brands/order', {
+      method: 'PUT',
+      body: JSON.stringify({ brandOrders }),
     });
   },
 };

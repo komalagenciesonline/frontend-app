@@ -3,6 +3,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Image, Modal, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import DraggableFlatList, { RenderItemParams } from 'react-native-draggable-flatlist';
 import { api, Brand, Product } from '../../utils/api';
 
 interface SelectedItem {
@@ -28,6 +29,7 @@ export default function NewOrderScreen() {
   const [products, setProducts] = useState<Product[]>([]);
   const [brands, setBrands] = useState<Brand[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isDragging, setIsDragging] = useState(false);
 
   // Load products and brands data
   useEffect(() => {
@@ -104,6 +106,28 @@ export default function NewOrderScreen() {
         orderItems: JSON.stringify(selectedItems)
       }
     });
+  };
+
+  const handleDragEnd = async ({ data }: { data: Brand[] }) => {
+    setBrands(data);
+    setIsDragging(false);
+    
+    // Save the new order to backend
+    try {
+      const brandOrders = data.map((brand, index) => ({
+        brandId: brand._id,
+        order: index
+      }));
+      
+      await api.brands.updateOrder(brandOrders);
+    } catch (error) {
+      console.error('Error updating brand order:', error);
+      // Optionally show a toast or alert to user
+    }
+  };
+
+  const handleDragBegin = () => {
+    setIsDragging(true);
   };
 
   const ProductModal = () => {
@@ -275,17 +299,36 @@ export default function NewOrderScreen() {
     );
   };
 
-  const BrandCard = ({ brand }: { brand: Brand }) => (
+  const BrandCard = ({ brand, drag, isActive }: { brand: Brand; drag: () => void; isActive: boolean }) => (
     <TouchableOpacity 
-      style={styles.brandCard}
-      onPress={() => handleBrandPress(brand)}
+      style={[
+        styles.brandCard,
+        isActive && styles.brandCardDragging
+      ]}
+      onPress={() => !isActive && handleBrandPress(brand)}
+      disabled={isActive}
     >
+      <TouchableOpacity 
+        style={styles.dragHandle}
+        onPressIn={drag}
+        disabled={isActive}
+      >
+        <Ionicons 
+          name="reorder-three-outline" 
+          size={24} 
+          color={isActive ? "#007AFF" : "#999"} 
+        />
+      </TouchableOpacity>
+      
       <Image source={{ uri: brand.image }} style={styles.brandImage} />
       <View style={styles.brandInfo}>
         <Text style={styles.brandName}>{brand.name}</Text>
         <Text style={styles.productCount}>{brand.productCount || getBrandProductCount(brand._id)} Products</Text>
       </View>
-      <Ionicons name="chevron-forward" size={20} color="#666" />
+      
+      {!isActive && (
+        <Ionicons name="chevron-forward" size={20} color="#666" />
+      )}
     </TouchableOpacity>
   );
 
@@ -324,11 +367,14 @@ export default function NewOrderScreen() {
       </View>
 
       {/* Brands Section */}
-      <ScrollView style={styles.brandsContainer} showsVerticalScrollIndicator={false}>
+      <View style={styles.brandsContainer}>
         <View style={styles.brandsHeader}>
           <Text style={styles.brandsTitle}>
             Available Brands ({brands.length})
           </Text>
+          {isDragging && (
+            <Text style={styles.dragHint}>Drag to reorder brands</Text>
+          )}
         </View>
         
         {isLoading ? (
@@ -337,13 +383,23 @@ export default function NewOrderScreen() {
             <Text style={styles.loadingText}>Loading brands...</Text>
           </View>
         ) : (
-          <View style={styles.brandsList}>
-            {brands.map((brand) => (
-              <BrandCard key={brand._id} brand={brand} />
-            ))}
-          </View>
+          <DraggableFlatList
+            data={brands}
+            onDragBegin={handleDragBegin}
+            onDragEnd={handleDragEnd}
+            keyExtractor={(item) => item._id}
+            renderItem={({ item, drag, isActive }: RenderItemParams<Brand>) => (
+              <BrandCard 
+                brand={item} 
+                drag={drag} 
+                isActive={isActive} 
+              />
+            )}
+            contentContainerStyle={styles.brandsList}
+            showsVerticalScrollIndicator={false}
+          />
         )}
-      </ScrollView>
+      </View>
 
       {/* Bottom Summary */}
       {selectedItems.length > 0 && (
@@ -446,11 +502,19 @@ const styles = StyleSheet.create({
   },
   brandsHeader: {
     paddingVertical: 15,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   brandsTitle: {
     fontSize: 18,
     fontWeight: 'bold',
     color: '#1a1a1a',
+  },
+  dragHint: {
+    fontSize: 12,
+    color: '#007AFF',
+    fontStyle: 'italic',
   },
   brandsList: {
     gap: 12,
@@ -470,6 +534,19 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 3.84,
     elevation: 5,
+  },
+  brandCardDragging: {
+    backgroundColor: '#f0f8ff',
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+    transform: [{ scale: 1.02 }],
+  },
+  dragHandle: {
+    padding: 8,
+    marginRight: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   brandImage: {
     width: 60,
