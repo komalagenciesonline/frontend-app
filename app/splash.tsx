@@ -236,7 +236,7 @@ export default function SplashScreen() {
           ]}
         >
           <Text style={styles.versionText}>Version 1.0.0</Text>
-          <Text style={styles.copyrightText}>© 2024 Komal Agencies</Text>
+          <Text style={styles.copyrightText}>© 2025 Komal Agencies</Text>
         </Animated.View>
       </LinearGradient>
     </View>

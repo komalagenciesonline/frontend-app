@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState, useRef } from 'react';
 import { ActivityIndicator, Alert, Dimensions, RefreshControl, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
 import Modal from 'react-native-modal';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -20,6 +20,7 @@ export default function OrdersScreen() {
   
   const [searchQuery, setSearchQuery] = useState(incomingSearchQuery || '');
   const [refreshing, setRefreshing] = useState(false);
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   // Filter states - initialize with incoming params if available
   const [statusFilter, setStatusFilter] = useState(incomingStatusFilter || 'all');
@@ -39,13 +40,13 @@ export default function OrdersScreen() {
   const [isLoading, setIsLoading] = useState(true);
 
   // Simple load orders function
-  const loadOrders = useCallback(async () => {
+  const loadOrders = useCallback(async (customBitsFilter?: string, customStatusFilter?: string, customSearchQuery?: string) => {
     try {
       setIsLoading(true);
       const ordersData = await api.orders.getAll(
-        bitsFilter === 'all' ? undefined : bitsFilter,
-        statusFilter === 'all' ? undefined : statusFilter,
-        searchQuery || undefined
+        (customBitsFilter || bitsFilter) === 'all' ? undefined : (customBitsFilter || bitsFilter),
+        (customStatusFilter || statusFilter) === 'all' ? undefined : (customStatusFilter || statusFilter),
+        customSearchQuery || searchQuery || undefined
       );
       setOrders(ordersData);
     } catch (error) {
@@ -61,6 +62,15 @@ export default function OrdersScreen() {
     loadOrders();
   }, []);
 
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, []);
+
   // Handle incoming filter parameters and refresh data when they change
   useEffect(() => {
     if (incomingBitsFilter || incomingStatusFilter || incomingDateFilter || incomingSearchQuery !== undefined) {
@@ -71,9 +81,9 @@ export default function OrdersScreen() {
       setSearchQuery(incomingSearchQuery || '');
       
       // Refresh data with new filters
-      loadOrders();
+      loadOrders(incomingBitsFilter || 'all', incomingStatusFilter || 'all', incomingSearchQuery || '');
     }
-  }, [incomingBitsFilter, incomingStatusFilter, incomingDateFilter, incomingSearchQuery, loadOrders]);
+  }, [incomingBitsFilter, incomingStatusFilter, incomingDateFilter, incomingSearchQuery]);
 
   // Pull to refresh handler
   const onRefresh = useCallback(async () => {
@@ -139,8 +149,8 @@ export default function OrdersScreen() {
     setDateFilter(tempDateFilter);
     setBitsFilter(tempBitsFilter);
     setModalVisible(false);
-    // Refresh data when filters are applied
-    loadOrders();
+    // Refresh data when filters are applied with the new filter values
+    loadOrders(tempBitsFilter, tempStatusFilter, searchQuery);
   };
 
   // Handle clearing all filters
@@ -148,6 +158,21 @@ export default function OrdersScreen() {
     setTempStatusFilter('all');
     setTempDateFilter('all');
     setTempBitsFilter('all');
+  };
+
+  // Handle search input change with debouncing
+  const handleSearchChange = (text: string) => {
+    setSearchQuery(text);
+    
+    // Clear existing timeout
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+    
+    // Set new timeout for search
+    searchTimeoutRef.current = setTimeout(() => {
+      loadOrders(bitsFilter, statusFilter, text);
+    }, 500); // 500ms delay
   };
 
   // Apply client-side date filtering
@@ -182,8 +207,8 @@ export default function OrdersScreen() {
           placeholder="Search orders..."
           placeholderTextColor="#999"
           value={searchQuery}
-          onChangeText={setSearchQuery}
-          onSubmitEditing={() => loadOrders()}
+          onChangeText={handleSearchChange}
+          onSubmitEditing={() => loadOrders(bitsFilter, statusFilter, searchQuery)}
         />
         <TouchableOpacity 
           style={styles.filterButton}
