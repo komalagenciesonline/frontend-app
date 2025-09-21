@@ -23,6 +23,8 @@ export default function EditOrderScreen() {
   const [products, setProducts] = useState<Product[]>([]);
   const [brands, setBrands] = useState<Brand[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [isDatePickerVisible, setIsDatePickerVisible] = useState(false);
 
   // Parse order data from params
   React.useEffect(() => {
@@ -31,6 +33,14 @@ export default function EditOrderScreen() {
         const parsedOrder = JSON.parse(orderData);
         setOrder(parsedOrder);
         setOrderItems(parsedOrder.items || []);
+        
+        // Parse the order date and set it as selected date
+        if (parsedOrder.date) {
+          // Parse DD/MM/YYYY format to Date object
+          const [day, month, year] = parsedOrder.date.split('/');
+          const orderDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+          setSelectedDate(orderDate);
+        }
       } catch (error) {
         console.error('Error parsing order data:', error);
       }
@@ -135,10 +145,14 @@ export default function EditOrderScreen() {
     try {
       const totalItems = orderItems.reduce((total, item) => total + item.quantity, 0);
       
+      // Format the selected date to DD/MM/YYYY format
+      const formattedDate = selectedDate.toLocaleDateString('en-GB');
+      
       await api.orders.update(order._id, {
         items: orderItems,
         totalItems: totalItems,
-        // Update the order with current items
+        date: formattedDate,
+        // Update the order with current items and new date
       });
 
       Alert.alert(
@@ -191,10 +205,14 @@ export default function EditOrderScreen() {
             try {
               const totalItems = orderItems.reduce((total, item) => total + item.quantity, 0);
               
+              // Format the selected date to DD/MM/YYYY format
+              const formattedDate = selectedDate.toLocaleDateString('en-GB');
+              
               await api.orders.update(order._id, {
                 items: orderItems,
                 totalItems: totalItems,
                 status: 'Completed',
+                date: formattedDate,
               });
 
               Alert.alert(
@@ -419,6 +437,142 @@ export default function EditOrderScreen() {
     </TouchableOpacity>
   );
 
+  const CustomDatePicker = () => {
+    const formatDate = (date: Date) => {
+      return date.toLocaleDateString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+    };
+
+    const generateCalendarDays = () => {
+      const today = new Date();
+      const currentMonth = selectedDate.getMonth();
+      const currentYear = selectedDate.getFullYear();
+      
+      const firstDayOfMonth = new Date(currentYear, currentMonth, 1);
+      const lastDayOfMonth = new Date(currentYear, currentMonth + 1, 0);
+      const firstDayWeekday = firstDayOfMonth.getDay();
+      
+      const days = [];
+      
+      // Add empty cells for days before the first day of the month
+      for (let i = 0; i < firstDayWeekday; i++) {
+        days.push(null);
+      }
+      
+      // Add days of the month
+      for (let day = 1; day <= lastDayOfMonth.getDate(); day++) {
+        days.push(day);
+      }
+      
+      return days;
+    };
+
+    const handleDateSelect = (day: number) => {
+      const newDate = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), day);
+      setSelectedDate(newDate);
+      setIsDatePickerVisible(false);
+    };
+
+    const navigateMonth = (direction: 'prev' | 'next') => {
+      const newDate = new Date(selectedDate);
+      if (direction === 'prev') {
+        newDate.setMonth(newDate.getMonth() - 1);
+      } else {
+        newDate.setMonth(newDate.getMonth() + 1);
+      }
+      setSelectedDate(newDate);
+    };
+
+    const calendarDays = generateCalendarDays();
+    const monthNames = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+    return (
+      <Modal
+        visible={isDatePickerVisible}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setIsDatePickerVisible(false)}
+      >
+        <SafeAreaView style={styles.datePickerContainer}>
+          {/* Header */}
+          <View style={styles.datePickerHeader}>
+            <TouchableOpacity onPress={() => setIsDatePickerVisible(false)}>
+              <Ionicons name="close" size={24} color="#666" />
+            </TouchableOpacity>
+            <Text style={styles.datePickerTitle}>Select Date</Text>
+            <TouchableOpacity onPress={() => {
+              setSelectedDate(new Date());
+              setIsDatePickerVisible(false);
+            }}>
+              <Text style={styles.todayButton}>Today</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Calendar */}
+          <View style={styles.calendarContainer}>
+            {/* Month Navigation */}
+            <View style={styles.monthNavigation}>
+              <TouchableOpacity onPress={() => navigateMonth('prev')}>
+                <Ionicons name="chevron-back" size={24} color="#007AFF" />
+              </TouchableOpacity>
+              <Text style={styles.monthYear}>
+                {monthNames[selectedDate.getMonth()]} {selectedDate.getFullYear()}
+              </Text>
+              <TouchableOpacity onPress={() => navigateMonth('next')}>
+                <Ionicons name="chevron-forward" size={24} color="#007AFF" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Day Names */}
+            <View style={styles.dayNamesRow}>
+              {dayNames.map((day) => (
+                <Text key={day} style={styles.dayName}>{day}</Text>
+              ))}
+            </View>
+
+            {/* Calendar Grid */}
+            <View style={styles.calendarGrid}>
+              {calendarDays.map((day, index) => (
+                <TouchableOpacity
+                  key={index}
+                  style={[
+                    styles.calendarDay,
+                    day === selectedDate.getDate() && styles.selectedDay,
+                    day === new Date().getDate() && 
+                    selectedDate.getMonth() === new Date().getMonth() && 
+                    selectedDate.getFullYear() === new Date().getFullYear() && 
+                    styles.todayDay
+                  ]}
+                  onPress={() => day && handleDateSelect(day)}
+                  disabled={!day}
+                >
+                  <Text style={[
+                    styles.dayText,
+                    day === selectedDate.getDate() && styles.selectedDayText,
+                    day === new Date().getDate() && 
+                    selectedDate.getMonth() === new Date().getMonth() && 
+                    selectedDate.getFullYear() === new Date().getFullYear() && 
+                    styles.todayDayText
+                  ]}>
+                    {day}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        </SafeAreaView>
+      </Modal>
+    );
+  };
+
   if (!order) {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
@@ -496,6 +650,27 @@ export default function EditOrderScreen() {
         </View>
       </View>
 
+      {/* Date Picker Section */}
+      <View style={styles.datePickerSection}>
+        <TouchableOpacity 
+          style={styles.datePickerButton}
+          onPress={() => setIsDatePickerVisible(true)}
+        >
+          <View style={styles.datePickerContent}>
+            <Ionicons name="calendar-outline" size={20} color="#007AFF" />
+            <Text style={styles.datePickerText}>
+              {selectedDate.toLocaleDateString('en-US', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+              })}
+            </Text>
+            <Ionicons name="chevron-forward" size={20} color="#666" />
+          </View>
+        </TouchableOpacity>
+      </View>
+
       {/* Order Items Section */}
       <ScrollView style={styles.contentContainer} showsVerticalScrollIndicator={false}>
         <View style={styles.sectionHeader}>
@@ -540,6 +715,7 @@ export default function EditOrderScreen() {
       )}
 
       <ProductModal />
+      <CustomDatePicker />
     </SafeAreaView>
   );
 }
@@ -883,5 +1059,120 @@ const styles = StyleSheet.create({
   quantityTextSelected: {
     color: '#ffffff',
     fontWeight: '600',
+  },
+  // Date Picker Styles
+  datePickerSection: {
+    paddingHorizontal: 20,
+    paddingVertical: 15,
+    backgroundColor: '#ffffff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e5ea',
+  },
+  datePickerButton: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#f8f9fa',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#e5e5ea',
+  },
+  datePickerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  datePickerText: {
+    fontSize: 16,
+    color: '#1a1a1a',
+    marginLeft: 12,
+    fontWeight: '500',
+  },
+  // Date Picker Modal Styles
+  datePickerContainer: {
+    flex: 1,
+    backgroundColor: '#ffffff',
+  },
+  datePickerHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 15,
+    backgroundColor: '#007AFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e5ea',
+  },
+  datePickerTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#ffffff',
+  },
+  todayButton: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#ffffff',
+  },
+  calendarContainer: {
+    flex: 1,
+    padding: 20,
+  },
+  monthNavigation: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  monthYear: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#1a1a1a',
+  },
+  dayNamesRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginBottom: 10,
+  },
+  dayName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#666666',
+    width: 40,
+    textAlign: 'center',
+  },
+  calendarGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-around',
+  },
+  calendarDay: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginVertical: 2,
+    borderRadius: 20,
+  },
+  selectedDay: {
+    backgroundColor: '#007AFF',
+  },
+  todayDay: {
+    backgroundColor: '#f0f8ff',
+    borderWidth: 1,
+    borderColor: '#007AFF',
+  },
+  dayText: {
+    fontSize: 16,
+    color: '#1a1a1a',
+    fontWeight: '500',
+  },
+  selectedDayText: {
+    color: '#ffffff',
+    fontWeight: 'bold',
+  },
+  todayDayText: {
+    color: '#007AFF',
+    fontWeight: 'bold',
   },
 });

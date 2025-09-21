@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import React, { useCallback, useEffect, useState, useRef } from 'react';
+import React, { useCallback, useEffect, useState, useRef, useMemo } from 'react';
 import { ActivityIndicator, Alert, Dimensions, RefreshControl, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
 import Modal from 'react-native-modal';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -8,19 +8,126 @@ import { api, Order } from '../../utils/api';
 
 const { height: screenHeight, width: screenWidth } = Dimensions.get('screen');
 
+// Memoized OrderCard component to prevent unnecessary re-renders
+const OrderCard = React.memo(({ 
+  order, 
+  onEdit, 
+  onDelete, 
+  onPress 
+}: { 
+  order: Order;
+  onEdit: (order: Order) => void;
+  onDelete: (order: Order) => void;
+  onPress: (order: Order) => void;
+}) => (
+  <TouchableOpacity 
+    style={styles.orderCard}
+    onPress={() => onPress(order)}
+  >
+    <View style={styles.orderHeader}>
+      <View style={styles.orderInfo}>
+        <Text style={styles.orderNumber}>{order.orderNumber}</Text>
+        <Text style={styles.counterName}>{order.counterName}</Text>
+      </View>
+      <View style={[
+        styles.statusBadge,
+        { backgroundColor: order.status === 'Completed' ? '#4CAF50' : '#FF9800' }
+      ]}>
+        <Text style={styles.statusText}>{order.status}</Text>
+      </View>
+    </View>
+    
+    <View style={styles.orderDetails}>
+      <View style={styles.detailRow}>
+        <View style={styles.detailItem}>
+          <Ionicons name="location-outline" size={16} color="#666" />
+          <Text style={styles.detailText}>{order.bit}</Text>
+        </View>
+        <View style={styles.orderHeaderRight}>
+          <TouchableOpacity 
+            style={styles.editButton}
+            onPress={() => onEdit(order)}
+          >
+            <Ionicons name="create-outline" size={18} color="#007AFF" />
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={styles.deleteButton}
+            onPress={() => onDelete(order)}
+          >
+            <Ionicons name="trash-outline" size={18} color="#FF3B30" />
+          </TouchableOpacity>
+        </View>
+      </View>
+      
+      <View style={styles.detailRow}>
+        <View style={styles.detailItem}>
+          <Ionicons name="cube-outline" size={16} color="#666" />
+          <Text style={styles.detailText}>{order.totalItems} items</Text>
+        </View>
+        <View style={styles.detailItem}>
+          <Ionicons name="calendar-outline" size={16} color="#666" />
+          <Text style={styles.detailText}>{order.date}</Text>
+        </View>
+      </View>
+    </View>
+  </TouchableOpacity>
+));
+
+// Memoized SearchBar component to prevent unnecessary re-renders
+const SearchBar = React.memo(({ 
+  searchQuery, 
+  onSearchChange, 
+  onFilterPress 
+}: {
+  searchQuery: string;
+  onSearchChange: (query: string) => void;
+  onFilterPress: () => void;
+}) => {
+  const searchInputRef = useRef<TextInput>(null);
+  
+  return (
+    <View style={styles.searchContainer}>
+      <View style={styles.searchBar}>
+        <Ionicons name="search-outline" size={20} color="#666" />
+        <TextInput
+          ref={searchInputRef}
+          style={styles.searchInput}
+          placeholder="Search orders by counter name..."
+          placeholderTextColor="#999"
+          value={searchQuery}
+          onChangeText={onSearchChange}
+          returnKeyType="search"
+          clearButtonMode="while-editing"
+          // Critical props to prevent keyboard dismissal
+          blurOnSubmit={false}
+          autoCorrect={false}
+          autoCapitalize="none"
+          keyboardType="default"
+          textContentType="none"
+        />
+        <TouchableOpacity 
+          style={styles.filterButton}
+          onPress={onFilterPress}
+        >
+          <Ionicons name="filter-outline" size={20} color="#666" />
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+});
+
 export default function OrdersScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { bitsFilter: incomingBitsFilter, statusFilter: incomingStatusFilter, dateFilter: incomingDateFilter, searchQuery: incomingSearchQuery } = useLocalSearchParams<{
+  const { bitsFilter: incomingBitsFilter, statusFilter: incomingStatusFilter, dateFilter: incomingDateFilter } = useLocalSearchParams<{
     bitsFilter?: string;
     statusFilter?: string;
     dateFilter?: string;
-    searchQuery?: string;
   }>();
   
-  const [searchQuery, setSearchQuery] = useState(incomingSearchQuery || '');
   const [refreshing, setRefreshing] = useState(false);
-  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
   
   // Filter states - initialize with incoming params if available
   const [statusFilter, setStatusFilter] = useState(incomingStatusFilter || 'all');
@@ -39,14 +146,84 @@ export default function OrdersScreen() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Simple load orders function
-  const loadOrders = useCallback(async (customBitsFilter?: string, customStatusFilter?: string, customSearchQuery?: string) => {
+  // Refs for cleanup
+  const debounceTimeoutRef = useRef<number | null>(null);
+
+  // Debounce search query to reduce re-renders
+  useEffect(() => {
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
+    }
+    
+    debounceTimeoutRef.current = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 300); // 300ms delay
+    
+    return () => {
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+      }
+    };
+  }, [searchQuery]);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Memoize date filter functions to prevent recalculation
+  const dateFilterFunctions = useMemo(() => {
+    const today = new Date();
+    const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const startOfWeek = new Date(today);
+    startOfWeek.setDate(today.getDate() - today.getDay());
+    const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    
+    return {
+      today: (orderDate: Date) => orderDate >= startOfToday,
+      week: (orderDate: Date) => orderDate >= startOfWeek,
+      month: (orderDate: Date) => orderDate >= startOfMonth,
+    };
+  }, []); // Empty dependency - calculate once
+
+  // Memoize filter options to prevent re-creation
+  const filterOptions = useMemo(() => ({
+    status: [
+      { label: 'All Status', value: 'all' },
+      { label: 'Pending', value: 'Pending' },
+      { label: 'Completed', value: 'Completed' },
+    ],
+    date: [
+      { label: 'All Dates', value: 'all' },
+      { label: 'Today', value: 'today' },
+      { label: 'This Week', value: 'week' },
+      { label: 'This Month', value: 'month' },
+    ],
+    bits: [
+      { label: 'All Bits', value: 'all' },
+      { label: 'Turori', value: 'Turori' },
+      { label: 'Naldurg & Jalkot', value: 'Naldurg & Jalkot' },
+      { label: 'Gunjoti & Murum', value: 'Gunjoti & Murum' },
+      { label: 'Dalimb & Yenegur', value: 'Dalimb & Yenegur' },
+      { label: 'Sastur & Makhani', value: 'Sastur & Makhani' },
+      { label: 'Narangwadi & Killari', value: 'Narangwadi & Killari' },
+      { label: 'Andur', value: 'Andur' },
+      { label: 'Omerga', value: 'Omerga' },
+    ]
+  }), []);
+
+  // Simple load orders function (without search - search is handled client-side)
+  const loadOrders = useCallback(async (customBitsFilter?: string, customStatusFilter?: string) => {
     try {
       setIsLoading(true);
+      
       const ordersData = await api.orders.getAll(
         (customBitsFilter || bitsFilter) === 'all' ? undefined : (customBitsFilter || bitsFilter),
-        (customStatusFilter || statusFilter) === 'all' ? undefined : (customStatusFilter || statusFilter),
-        customSearchQuery || searchQuery || undefined
+        (customStatusFilter || statusFilter) === 'all' ? undefined : (customStatusFilter || statusFilter)
       );
       setOrders(ordersData);
     } catch (error) {
@@ -55,45 +232,98 @@ export default function OrdersScreen() {
     } finally {
       setIsLoading(false);
     }
-  }, [bitsFilter, statusFilter, searchQuery]);
+  }, [bitsFilter, statusFilter]);
 
   // Load orders ONLY on initial mount
   useEffect(() => {
     loadOrders();
   }, []);
 
-  // Cleanup timeout on unmount
-  useEffect(() => {
-    return () => {
-      if (searchTimeoutRef.current) {
-        clearTimeout(searchTimeoutRef.current);
-      }
-    };
-  }, []);
+  // Use useMemo for filtering with debounced search query
+  const filteredOrders = useMemo(() => {
+    let filtered = orders;
+
+    // Filter by bits
+    if (bitsFilter !== 'all') {
+      filtered = filtered.filter(order => order.bit === bitsFilter);
+    }
+
+    // Filter by status
+    if (statusFilter !== 'all') {
+      filtered = filtered.filter(order => order.status === statusFilter);
+    }
+
+    // Filter by date
+    if (dateFilter !== 'all') {
+      filtered = filtered.filter(order => {
+        const orderDate = new Date(order.date.split('/').reverse().join('-')); // Convert DD/MM/YYYY to YYYY-MM-DD
+        
+        switch (dateFilter) {
+          case 'today':
+            return dateFilterFunctions.today(orderDate);
+          case 'week':
+            return dateFilterFunctions.week(orderDate);
+          case 'month':
+            return dateFilterFunctions.month(orderDate);
+          default:
+            return true;
+        }
+      });
+    }
+
+    // Filter by search query using debounced value
+    if (debouncedSearchQuery.trim()) {
+      filtered = filtered.filter(order =>
+        order.counterName.toLowerCase().includes(debouncedSearchQuery.toLowerCase())
+      );
+    }
+
+    return filtered;
+  }, [orders, bitsFilter, statusFilter, dateFilter, debouncedSearchQuery, dateFilterFunctions]);
 
   // Handle incoming filter parameters and refresh data when they change
   useEffect(() => {
-    if (incomingBitsFilter || incomingStatusFilter || incomingDateFilter || incomingSearchQuery !== undefined) {
+    if (incomingBitsFilter || incomingStatusFilter || incomingDateFilter) {
       // Update states with incoming parameters
       setBitsFilter(incomingBitsFilter || 'all');
       setStatusFilter(incomingStatusFilter || 'all');
       setDateFilter(incomingDateFilter || 'all');
-      setSearchQuery(incomingSearchQuery || '');
       
       // Refresh data with new filters
-      loadOrders(incomingBitsFilter || 'all', incomingStatusFilter || 'all', incomingSearchQuery || '');
+      loadOrders(incomingBitsFilter || 'all', incomingStatusFilter || 'all');
     }
-  }, [incomingBitsFilter, incomingStatusFilter, incomingDateFilter, incomingSearchQuery]);
+  }, [incomingBitsFilter, incomingStatusFilter, incomingDateFilter]);
 
-  // Pull to refresh handler
-  const onRefresh = useCallback(async () => {
-    setRefreshing(true);
-    await loadOrders();
-    setRefreshing(false);
-  }, [loadOrders]);
+  // Memoized callback functions to prevent unnecessary re-renders
+  const handleSearchChange = useCallback((query: string) => {
+    setSearchQuery(query);
+  }, []);
 
-  // Handle delete button press
-  const handleDeletePress = (order: Order) => {
+  const handleOrderPress = useCallback((order: Order) => {
+    router.push({
+      pathname: '/orders/order-details',
+      params: {
+        orderData: JSON.stringify(order),
+        bitsFilter: bitsFilter,
+        statusFilter: statusFilter,
+        dateFilter: dateFilter
+      }
+    });
+  }, [router, bitsFilter, statusFilter, dateFilter]);
+
+  const handleEditPress = useCallback((order: Order) => {
+    router.push({
+      pathname: '/orders/edit-order',
+      params: {
+        orderData: JSON.stringify(order),
+        bitsFilter: bitsFilter,
+        statusFilter: statusFilter,
+        dateFilter: dateFilter
+      }
+    });
+  }, [router, bitsFilter, statusFilter, dateFilter]);
+
+  const handleDeletePress = useCallback((order: Order) => {
     Alert.alert(
       'Delete Order',
       `Are you sure you want to delete order ${order.orderNumber}? This action cannot be undone.`,
@@ -118,204 +348,50 @@ export default function OrdersScreen() {
         },
       ]
     );
-  };
+  }, [loadOrders]);
 
-  // Handle edit button press
-  const handleEditPress = (order: Order) => {
-    router.push({
-      pathname: '/orders/edit-order',
-      params: {
-        orderData: JSON.stringify(order),
-        // Pass current filter states to preserve them
-        bitsFilter: bitsFilter,
-        statusFilter: statusFilter,
-        dateFilter: dateFilter,
-        searchQuery: searchQuery
-      }
-    });
-  };
+  // Pull to refresh handler
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await loadOrders();
+    setRefreshing(false);
+  }, [loadOrders]);
 
   // Handle opening filter modal - copy current filters to temp state
-  const handleOpenFilterModal = () => {
+  const handleOpenFilterModal = useCallback(() => {
     setTempStatusFilter(statusFilter);
     setTempDateFilter(dateFilter);
     setTempBitsFilter(bitsFilter);
     setModalVisible(true);
-  };
+  }, [statusFilter, dateFilter, bitsFilter]);
 
   // Handle applying filters
-  const handleApplyFilters = () => {
+  const handleApplyFilters = useCallback(() => {
     setStatusFilter(tempStatusFilter);
     setDateFilter(tempDateFilter);
     setBitsFilter(tempBitsFilter);
     setModalVisible(false);
     // Refresh data when filters are applied with the new filter values
-    loadOrders(tempBitsFilter, tempStatusFilter, searchQuery);
-  };
+    loadOrders(tempBitsFilter, tempStatusFilter);
+  }, [tempStatusFilter, tempDateFilter, tempBitsFilter, loadOrders]);
 
   // Handle clearing all filters
-  const handleClearAllFilters = () => {
+  const handleClearAllFilters = useCallback(() => {
     setTempStatusFilter('all');
     setTempDateFilter('all');
     setTempBitsFilter('all');
-  };
-
-  // Handle search input change with debouncing
-  const handleSearchChange = (text: string) => {
-    setSearchQuery(text);
-    
-    // Clear existing timeout
-    if (searchTimeoutRef.current) {
-      clearTimeout(searchTimeoutRef.current);
-    }
-    
-    // Set new timeout for search
-    searchTimeoutRef.current = setTimeout(() => {
-      loadOrders(bitsFilter, statusFilter, text);
-    }, 500); // 500ms delay
-  };
-
-  // Apply client-side date filtering
-  const filteredOrders = orders.filter(order => {
-    if (dateFilter === 'all') return true;
-    
-    const orderDate = new Date(order.date.split('/').reverse().join('-')); // Convert DD/MM/YYYY to YYYY-MM-DD
-    const today = new Date();
-    const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-    const startOfWeek = new Date(today);
-    startOfWeek.setDate(today.getDate() - today.getDay()); // Start of current week
-    const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-    
-    switch (dateFilter) {
-      case 'today':
-        return orderDate >= startOfToday;
-      case 'week':
-        return orderDate >= startOfWeek;
-      case 'month':
-        return orderDate >= startOfMonth;
-      default:
-        return true;
-    }
-  });
-
-  const SearchBar = () => (
-    <View style={styles.searchContainer}>
-      <View style={styles.searchBar}>
-        <Ionicons name="search-outline" size={20} color="#666" />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search orders..."
-          placeholderTextColor="#999"
-          value={searchQuery}
-          onChangeText={handleSearchChange}
-          onSubmitEditing={() => loadOrders(bitsFilter, statusFilter, searchQuery)}
-        />
-        <TouchableOpacity 
-          style={styles.filterButton}
-          onPress={handleOpenFilterModal}
-        >
-          <Ionicons name="filter-outline" size={20} color="#666" />
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
-
-  // Filter options data
-  const statusOptions = [
-    { label: 'All Status', value: 'all' },
-    { label: 'Pending', value: 'Pending' },
-    { label: 'Completed', value: 'Completed' },
-  ];
-
-  const dateOptions = [
-    { label: 'All Dates', value: 'all' },
-    { label: 'Today', value: 'today' },
-    { label: 'This Week', value: 'week' },
-    { label: 'This Month', value: 'month' },
-  ];
-
-  const bitsOptions = [
-    { label: 'All Bits', value: 'all' },
-    { label: 'Turori', value: 'Turori' },
-    { label: 'Naldurg & Jalkot', value: 'Naldurg & Jalkot' },
-    { label: 'Gunjoti & Murum', value: 'Gunjoti & Murum' },
-    { label: 'Dalimb & Yenegur', value: 'Dalimb & Yenegur' },
-    { label: 'Sastur & Makhani', value: 'Sastur & Makhani' },
-    { label: 'Narangwadi & Killari', value: 'Narangwadi & Killari' },
-    { label: 'Andur', value: 'Andur' },
-    { label: 'Omerga', value: 'Omerga' },
-  ];
-
-  const OrderCard = ({ order }: { order: Order }) => (
-    <TouchableOpacity 
-      style={styles.orderCard}
-      onPress={() => router.push({
-        pathname: '/orders/order-details',
-        params: {
-          orderData: JSON.stringify(order),
-          // Pass current filter states to preserve them
-          bitsFilter: bitsFilter,
-          statusFilter: statusFilter,
-          dateFilter: dateFilter,
-          searchQuery: searchQuery
-        }
-      })}
-    >
-      <View style={styles.orderHeader}>
-        <View style={styles.orderInfo}>
-          <Text style={styles.orderNumber}>{order.orderNumber}</Text>
-          <Text style={styles.counterName}>{order.counterName}</Text>
-        </View>
-        <View style={[
-          styles.statusBadge,
-          { backgroundColor: order.status === 'Completed' ? '#4CAF50' : '#FF9800' }
-        ]}>
-          <Text style={styles.statusText}>{order.status}</Text>
-        </View>
-      </View>
-      
-      <View style={styles.orderDetails}>
-        <View style={styles.detailRow}>
-          <View style={styles.detailItem}>
-            <Ionicons name="location-outline" size={16} color="#666" />
-            <Text style={styles.detailText}>{order.bit}</Text>
-          </View>
-          <View style={styles.orderHeaderRight}>
-            <TouchableOpacity 
-              style={styles.editButton}
-              onPress={() => handleEditPress(order)}
-            >
-              <Ionicons name="create-outline" size={18} color="#007AFF" />
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={styles.deleteButton}
-              onPress={() => handleDeletePress(order)}
-            >
-              <Ionicons name="trash-outline" size={18} color="#FF3B30" />
-            </TouchableOpacity>
-          </View>
-        </View>
-        
-        <View style={styles.detailRow}>
-          <View style={styles.detailItem}>
-            <Ionicons name="cube-outline" size={16} color="#666" />
-            <Text style={styles.detailText}>{order.totalItems} items</Text>
-          </View>
-          <View style={styles.detailItem}>
-            <Ionicons name="calendar-outline" size={16} color="#666" />
-            <Text style={styles.detailText}>{order.date}</Text>
-          </View>
-        </View>
-      </View>
-    </TouchableOpacity>
-  );
+  }, []);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
       
       {/* Search Bar */}
-      <SearchBar />
+      <SearchBar 
+        searchQuery={searchQuery}
+        onSearchChange={handleSearchChange}
+        onFilterPress={handleOpenFilterModal}
+      />
 
       {/* Orders List */}
       <ScrollView 
@@ -344,13 +420,28 @@ export default function OrdersScreen() {
             </View>
           ) : filteredOrders.length > 0 ? (
             filteredOrders.map((order) => (
-              <OrderCard key={order._id} order={order} />
+              <OrderCard 
+                key={order._id} 
+                order={order} 
+                onPress={handleOrderPress}
+                onEdit={handleEditPress}
+                onDelete={handleDeletePress}
+              />
             ))
           ) : (
             <View style={styles.emptyState}>
               <Ionicons name="receipt-outline" size={64} color="#ccc" />
-              <Text style={styles.emptyText}>No orders found</Text>
-              <Text style={styles.emptySubtext}>Try adjusting your search or bit selection</Text>
+              <Text style={styles.emptyText}>
+                {searchQuery.trim() ? 'No Matching Orders' : 'No Orders Found'}
+              </Text>
+              <Text style={styles.emptySubtext}>
+                {searchQuery.trim() 
+                  ? `No orders found for "${searchQuery}"`
+                  : bitsFilter !== 'all' || statusFilter !== 'all' || dateFilter !== 'all'
+                    ? 'Try adjusting your filters'
+                    : 'Orders will appear here when created'
+                }
+              </Text>
             </View>
           )}
         </View>
@@ -389,7 +480,7 @@ export default function OrdersScreen() {
             <View style={styles.filterSection}>
               <Text style={styles.filterSectionTitle}>Bits</Text>
               <View style={styles.filterOptions}>
-                {bitsOptions.map((option) => (
+                {filterOptions.bits.map((option) => (
                   <TouchableOpacity
                     key={option.value}
                     style={[
@@ -412,7 +503,7 @@ export default function OrdersScreen() {
             <View style={styles.filterSection}>
               <Text style={styles.filterSectionTitle}>Status</Text>
               <View style={styles.filterOptions}>
-                {statusOptions.map((option) => (
+                {filterOptions.status.map((option) => (
                   <TouchableOpacity
                     key={option.value}
                     style={[
@@ -435,7 +526,7 @@ export default function OrdersScreen() {
             <View style={styles.filterSection}>
               <Text style={styles.filterSectionTitle}>Date Range</Text>
               <View style={styles.filterOptions}>
-                {dateOptions.map((option) => (
+                {filterOptions.date.map((option) => (
                   <TouchableOpacity
                     key={option.value}
                     style={[
@@ -472,7 +563,6 @@ export default function OrdersScreen() {
           </View>
         </View>
       </Modal>
-
     </SafeAreaView>
   );
 }

@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState, useRef, useMemo } from 'react';
 import { ActivityIndicator, Alert, Dimensions, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
 import Modal from 'react-native-modal';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -9,10 +9,92 @@ import { api, Product } from '../../utils/api';
 
 const { height: screenHeight, width: screenWidth } = Dimensions.get('screen');
 
+// Memoized ProductCard component to prevent unnecessary re-renders
+const ProductCard = React.memo(({ 
+  product, 
+  onEdit,
+  onDelete 
+}: { 
+  product: Product;
+  onEdit: (product: Product) => void;
+  onDelete: (product: Product) => void;
+}) => (
+  <View style={styles.productCard}>
+    <View style={styles.productContent}>
+      <View style={styles.brandBadge}>
+        <Ionicons name="business-outline" size={16} color="#007AFF" />
+        <Text style={styles.brandText}>{product.brandName}</Text>
+      </View>
+      
+      <Text style={styles.productName}>{product.name}</Text>
+    </View>
+    
+    <View style={styles.actionButtons}>
+      <TouchableOpacity 
+        style={styles.editButton}
+        onPress={() => onEdit(product)}
+      >
+        <Ionicons name="create-outline" size={20} color="#007AFF" />
+      </TouchableOpacity>
+      
+      <TouchableOpacity 
+        style={styles.deleteButton}
+        onPress={() => onDelete(product)}
+      >
+        <Ionicons name="trash-outline" size={20} color="#FF3B30" />
+      </TouchableOpacity>
+    </View>
+  </View>
+));
+
+// Memoized SearchBar component to prevent unnecessary re-renders
+const SearchBar = React.memo(({ 
+  searchQuery, 
+  onSearchChange, 
+  onFilterPress 
+}: {
+  searchQuery: string;
+  onSearchChange: (query: string) => void;
+  onFilterPress: () => void;
+}) => {
+  const searchInputRef = useRef<TextInput>(null);
+  
+  return (
+    <View style={styles.searchContainer}>
+      <View style={styles.searchBar}>
+        <Ionicons name="search-outline" size={20} color="#666" />
+        <TextInput
+          ref={searchInputRef}
+          style={styles.searchInput}
+          placeholder="Search products..."
+          placeholderTextColor="#999"
+          value={searchQuery}
+          onChangeText={onSearchChange}
+          returnKeyType="search"
+          clearButtonMode="while-editing"
+          // Critical props to prevent keyboard dismissal
+          blurOnSubmit={false}
+          autoCorrect={false}
+          autoCapitalize="none"
+          keyboardType="default"
+          textContentType="none"
+        />
+        <TouchableOpacity 
+          style={styles.filterButton}
+          onPress={onFilterPress}
+        >
+          <Ionicons name="filter-outline" size={20} color="#666" />
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+});
+
 export default function ItemsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
   const [selectedBrand, setSelectedBrand] = useState('all');
   const [products, setProducts] = useState<Product[]>([]);
   const [brandOptions, setBrandOptions] = useState<{label: string, value: string}[]>([]);
@@ -25,12 +107,42 @@ export default function ItemsScreen() {
   // Modal visibility state
   const [isModalVisible, setModalVisible] = useState(false);
 
-  // Load products and brand options
+  // Refs for cleanup
+  const debounceTimeoutRef = useRef<number | null>(null);
+
+  // Debounce search query to reduce re-renders
+  useEffect(() => {
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
+    }
+    
+    debounceTimeoutRef.current = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 300); // 300ms delay
+    
+    return () => {
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+      }
+    };
+  }, [searchQuery]);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Load products and brand options with client-side filtering
   const loadData = useCallback(async () => {
     try {
       setIsLoading(true);
       const [productsData, brandNames] = await Promise.all([
-        api.products.getAll(selectedBrand === 'all' ? undefined : selectedBrand, searchQuery || undefined),
+        // Load all products and filter client-side for better search performance
+        api.products.getAll(selectedBrand === 'all' ? undefined : selectedBrand),
         api.products.getUniqueBrandNames()
       ]);
       
@@ -48,7 +160,27 @@ export default function ItemsScreen() {
     } finally {
       setIsLoading(false);
     }
-  }, [selectedBrand, searchQuery]);
+  }, [selectedBrand]);
+
+  // Client-side filtering with debounced search
+  const filteredProducts = useMemo(() => {
+    let filtered = products;
+
+    // Filter by brand
+    if (selectedBrand !== 'all') {
+      filtered = filtered.filter(product => product.brandName === selectedBrand);
+    }
+
+    // Filter by search query using debounced value
+    if (debouncedSearchQuery.trim()) {
+      filtered = filtered.filter(product =>
+        product.name.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
+        product.brandName.toLowerCase().includes(debouncedSearchQuery.toLowerCase())
+      );
+    }
+
+    return filtered;
+  }, [products, selectedBrand, debouncedSearchQuery]);
 
   // Load data on component mount
   useEffect(() => {
@@ -62,8 +194,21 @@ export default function ItemsScreen() {
     }, [loadData])
   );
 
-  // Handle delete product
-  const handleDeleteProduct = async (product: Product) => {
+  // Memoized callback functions to prevent unnecessary re-renders
+  const handleSearchChange = useCallback((query: string) => {
+    setSearchQuery(query);
+  }, []);
+
+  const handleEditProduct = useCallback((product: Product) => {
+    router.push({
+      pathname: '/items/edit-item',
+      params: {
+        productData: JSON.stringify(product)
+      }
+    });
+  }, [router]);
+
+  const handleDeleteProduct = useCallback(async (product: Product) => {
     Alert.alert(
       'Delete Product',
       `Are you sure you want to delete "${product.name}"? This action cannot be undone.${
@@ -95,10 +240,10 @@ export default function ItemsScreen() {
         },
       ]
     );
-  };
+  }, [loadData]);
 
   // Handle brand cleanup
-  const handleBrandCleanup = async () => {
+  const handleBrandCleanup = useCallback(async () => {
     Alert.alert(
       'Cleanup Empty Brands',
       'This will automatically delete any brands that have no products. Continue?',
@@ -126,89 +271,43 @@ export default function ItemsScreen() {
         },
       ]
     );
-  };
+  }, [loadData]);
 
   // Handle opening filter modal - copy current filter to temp state
-  const handleOpenFilterModal = () => {
+  const handleOpenFilterModal = useCallback(() => {
     setTempSelectedBrand(selectedBrand);
     setModalVisible(true);
-  };
+  }, [selectedBrand]);
 
   // Handle applying filters
-  const handleApplyFilters = () => {
+  const handleApplyFilters = useCallback(() => {
     setSelectedBrand(tempSelectedBrand);
     setModalVisible(false);
-  };
+  }, [tempSelectedBrand]);
 
   // Handle clearing all filters
-  const handleClearAllFilters = () => {
+  const handleClearAllFilters = useCallback(() => {
     setTempSelectedBrand('all');
-  };
+  }, []);
 
-  // Since we're now filtering on the server side, we can use products directly
-  const filteredProducts = products;
+  const handleNavigateToBrands = useCallback(() => {
+    router.push('/brands');
+  }, [router]);
 
-  const SearchBar = () => (
-    <View style={styles.searchContainer}>
-      <View style={styles.searchBar}>
-        <Ionicons name="search-outline" size={20} color="#666" />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search products..."
-          placeholderTextColor="#999"
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-        />
-        <TouchableOpacity 
-          style={styles.filterButton}
-          onPress={handleOpenFilterModal}
-        >
-          <Ionicons name="filter-outline" size={20} color="#666" />
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
-
-  const ProductCard = ({ product }: { product: Product }) => (
-    <View style={styles.productCard}>
-      <View style={styles.productContent}>
-        <View style={styles.brandBadge}>
-          <Ionicons name="business-outline" size={16} color="#007AFF" />
-          <Text style={styles.brandText}>{product.brandName}</Text>
-        </View>
-        
-        <Text style={styles.productName}>{product.name}</Text>
-      </View>
-      
-      <View style={styles.actionButtons}>
-        <TouchableOpacity 
-          style={styles.editButton}
-          onPress={() => router.push({
-            pathname: '/items/edit-item',
-            params: {
-              productData: JSON.stringify(product)
-            }
-          })}
-        >
-          <Ionicons name="create-outline" size={20} color="#007AFF" />
-        </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={styles.deleteButton}
-          onPress={() => handleDeleteProduct(product)}
-        >
-          <Ionicons name="trash-outline" size={20} color="#FF3B30" />
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
+  const handleAddProduct = useCallback(() => {
+    router.push('/items/new-item');
+  }, [router]);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
       
       {/* Search Bar */}
-      <SearchBar />
+      <SearchBar 
+        searchQuery={searchQuery}
+        onSearchChange={handleSearchChange}
+        onFilterPress={handleOpenFilterModal}
+      />
 
       {/* Products List */}
       <ScrollView style={styles.productsContainer} showsVerticalScrollIndicator={false}>
@@ -226,13 +325,13 @@ export default function ItemsScreen() {
             </TouchableOpacity>
             <TouchableOpacity 
               style={styles.brandsButton}
-              onPress={() => router.push('/brands')}
+              onPress={handleNavigateToBrands}
             >
               <Ionicons name="business-outline" size={20} color="#007AFF" />
             </TouchableOpacity>
             <TouchableOpacity 
               style={styles.addButton}
-              onPress={() => router.push('/items/new-item')}
+              onPress={handleAddProduct}
             >
               <Ionicons name="add" size={24} color="#007AFF" />
             </TouchableOpacity>
@@ -247,13 +346,27 @@ export default function ItemsScreen() {
             </View>
           ) : filteredProducts.length > 0 ? (
             filteredProducts.map((product) => (
-              <ProductCard key={product._id} product={product} />
+              <ProductCard 
+                key={product._id} 
+                product={product}
+                onEdit={handleEditProduct}
+                onDelete={handleDeleteProduct}
+              />
             ))
           ) : (
             <View style={styles.emptyState}>
               <Ionicons name="cube-outline" size={64} color="#ccc" />
-              <Text style={styles.emptyText}>No products found</Text>
-              <Text style={styles.emptySubtext}>Try adjusting your search or brand selection</Text>
+              <Text style={styles.emptyText}>
+                {searchQuery.trim() ? 'No Matching Products' : 'No Products Found'}
+              </Text>
+              <Text style={styles.emptySubtext}>
+                {searchQuery.trim() 
+                  ? `No products found for "${searchQuery}"`
+                  : selectedBrand !== 'all'
+                    ? 'Try adjusting your brand selection'
+                    : 'Add some products to get started'
+                }
+              </Text>
             </View>
           )}
         </View>
@@ -329,7 +442,6 @@ export default function ItemsScreen() {
           </View>
         </View>
       </Modal>
-
     </SafeAreaView>
   );
 }

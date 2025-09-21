@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useState, useRef, useMemo, useEffect } from 'react';
 import { ActivityIndicator, Alert, Dimensions, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
 import Modal from 'react-native-modal';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -9,10 +9,101 @@ import { api, Retailer } from '../../utils/api';
 
 const { height: screenHeight, width: screenWidth } = Dimensions.get('screen');
 
+// Memoized RetailerCard component to prevent unnecessary re-renders
+const RetailerCard = React.memo(({ 
+  retailer, 
+  onPress,
+  onEdit,
+  onDelete 
+}: { 
+  retailer: Retailer;
+  onPress: (retailer: Retailer) => void;
+  onEdit: (retailer: Retailer) => void;
+  onDelete: (retailer: Retailer) => void;
+}) => (
+  <View style={styles.retailerCard}>
+    <TouchableOpacity 
+      style={styles.retailerContent}
+      onPress={() => onPress(retailer)}
+    >
+      <View style={styles.retailerHeader}>
+        <View style={styles.retailerInfo}>
+          <Text style={styles.retailerName}>{retailer.name}</Text>
+          <Text style={styles.retailerPhone}>{retailer.phone}</Text>
+        </View>
+        <View style={styles.bitBadge}>
+          <Ionicons name="location-outline" size={16} color="#007AFF" />
+          <Text style={styles.bitText}>{retailer.bit}</Text>
+        </View>
+      </View>
+    </TouchableOpacity>
+    
+    <View style={styles.actionButtons}>
+      <TouchableOpacity 
+        style={styles.editButton}
+        onPress={() => onEdit(retailer)}
+      >
+        <Ionicons name="create-outline" size={20} color="#007AFF" />
+      </TouchableOpacity>
+      
+      <TouchableOpacity 
+        style={styles.deleteButton}
+        onPress={() => onDelete(retailer)}
+      >
+        <Ionicons name="trash-outline" size={20} color="#FF3B30" />
+      </TouchableOpacity>
+    </View>
+  </View>
+));
+
+// Memoized SearchBar component to prevent unnecessary re-renders
+const SearchBar = React.memo(({ 
+  searchQuery, 
+  onSearchChange, 
+  onFilterPress 
+}: {
+  searchQuery: string;
+  onSearchChange: (query: string) => void;
+  onFilterPress: () => void;
+}) => {
+  const searchInputRef = useRef<TextInput>(null);
+  
+  return (
+    <View style={styles.searchContainer}>
+      <View style={styles.searchBar}>
+        <Ionicons name="search-outline" size={20} color="#666" />
+        <TextInput
+          ref={searchInputRef}
+          style={styles.searchInput}
+          placeholder="Search retailers..."
+          placeholderTextColor="#999"
+          value={searchQuery}
+          onChangeText={onSearchChange}
+          returnKeyType="search"
+          clearButtonMode="while-editing"
+          // Critical props to prevent keyboard dismissal
+          blurOnSubmit={false}
+          autoCorrect={false}
+          autoCapitalize="none"
+          keyboardType="default"
+          textContentType="none"
+        />
+        <TouchableOpacity 
+          style={styles.filterButton}
+          onPress={onFilterPress}
+        >
+          <Ionicons name="filter-outline" size={20} color="#666" />
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+});
+
 export default function RetailersScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
   const [bitsFilter, setBitsFilter] = useState('all');
   const [retailers, setRetailers] = useState<Retailer[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -23,8 +114,37 @@ export default function RetailersScreen() {
   // Modal visibility state
   const [isModalVisible, setModalVisible] = useState(false);
 
-  // Bits options for dropdown picker
-  const bits = [
+  // Refs for cleanup
+  const debounceTimeoutRef = useRef<number | null>(null);
+
+  // Debounce search query to reduce re-renders
+  useEffect(() => {
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
+    }
+    
+    debounceTimeoutRef.current = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 300); // 300ms delay
+    
+    return () => {
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+      }
+    };
+  }, [searchQuery]);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Memoize bits options to prevent re-creation
+  const bitsOptions = useMemo(() => [
     { label: 'All Bits', value: 'all' },
     { label: 'Turori', value: 'Turori' },
     { label: 'Naldurg & Jalkot', value: 'Naldurg & Jalkot' },
@@ -34,15 +154,15 @@ export default function RetailersScreen() {
     { label: 'Narangwadi & Killari', value: 'Narangwadi & Killari' },
     { label: 'Andur', value: 'Andur' },
     { label: 'Omerga', value: 'Omerga' },
-  ];
+  ], []);
 
-  // Load retailers data
+  // Load retailers data with client-side filtering
   const loadRetailers = useCallback(async () => {
     try {
       setIsLoading(true);
+      // Load all retailers and filter client-side for better search performance
       const retailersData = await api.retailers.getAll(
-        bitsFilter === 'all' ? undefined : bitsFilter,
-        searchQuery || undefined
+        bitsFilter === 'all' ? undefined : bitsFilter
       );
       setRetailers(retailersData);
     } catch (error) {
@@ -51,7 +171,27 @@ export default function RetailersScreen() {
     } finally {
       setIsLoading(false);
     }
-  }, [bitsFilter, searchQuery]);
+  }, [bitsFilter]);
+
+  // Client-side filtering with debounced search
+  const filteredRetailers = useMemo(() => {
+    let filtered = retailers;
+
+    // Filter by bits
+    if (bitsFilter !== 'all') {
+      filtered = filtered.filter(retailer => retailer.bit === bitsFilter);
+    }
+
+    // Filter by search query using debounced value
+    if (debouncedSearchQuery.trim()) {
+      filtered = filtered.filter(retailer =>
+        retailer.name.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
+        retailer.phone.toLowerCase().includes(debouncedSearchQuery.toLowerCase())
+      );
+    }
+
+    return filtered;
+  }, [retailers, bitsFilter, debouncedSearchQuery]);
 
   // Load retailers on component mount and when screen comes into focus
   useFocusEffect(
@@ -60,8 +200,32 @@ export default function RetailersScreen() {
     }, [loadRetailers])
   );
 
-  // Handle delete retailer
-  const handleDeleteRetailer = async (retailer: Retailer) => {
+  // Memoized callback functions to prevent unnecessary re-renders
+  const handleSearchChange = useCallback((query: string) => {
+    setSearchQuery(query);
+  }, []);
+
+  const handleRetailerPress = useCallback((retailer: Retailer) => {
+    router.push({
+      pathname: '/orders/new-order',
+      params: { 
+        retailerName: retailer.name,
+        retailerPhone: retailer.phone,
+        retailerBit: retailer.bit
+      }
+    });
+  }, [router]);
+
+  const handleEditRetailer = useCallback((retailer: Retailer) => {
+    router.push({
+      pathname: '/retailers/edit-retailer',
+      params: {
+        retailerData: JSON.stringify(retailer)
+      }
+    });
+  }, [router]);
+
+  const handleDeleteRetailer = useCallback(async (retailer: Retailer) => {
     Alert.alert(
       'Delete Retailer',
       `Are you sure you want to delete ${retailer.name}?`,
@@ -87,96 +251,49 @@ export default function RetailersScreen() {
         },
       ]
     );
-  };
+  }, [loadRetailers]);
 
   // Handle opening filter modal - copy current filter to temp state
-  const handleOpenFilterModal = () => {
+  const handleOpenFilterModal = useCallback(() => {
     setTempBitsFilter(bitsFilter);
     setModalVisible(true);
-  };
+  }, [bitsFilter]);
 
   // Handle applying filters
-  const handleApplyFilters = () => {
+  const handleApplyFilters = useCallback(() => {
     setBitsFilter(tempBitsFilter);
     setModalVisible(false);
-  };
+  }, [tempBitsFilter]);
 
   // Handle clearing all filters
-  const handleClearAllFilters = () => {
+  const handleClearAllFilters = useCallback(() => {
     setTempBitsFilter('all');
-  };
+  }, []);
 
-  const SearchBar = () => (
-    <View style={styles.searchContainer}>
-      <View style={styles.searchBar}>
-        <Ionicons name="search-outline" size={20} color="#666" />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search retailers..."
-          placeholderTextColor="#999"
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-        />
-        <TouchableOpacity 
-          style={styles.filterButton}
-          onPress={handleOpenFilterModal}
-        >
-          <Ionicons name="filter-outline" size={20} color="#666" />
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
-
-  const RetailerCard = ({ retailer }: { retailer: Retailer }) => (
-    <View style={styles.retailerCard}>
-      <TouchableOpacity 
-        style={styles.retailerContent}
-        onPress={() => router.push({
-          pathname: '/orders/new-order',
-          params: { 
-            retailerName: retailer.name,
-            retailerPhone: retailer.phone,
-            retailerBit: retailer.bit
-          }
-        })}
-      >
-        <View style={styles.retailerHeader}>
-          <View style={styles.retailerInfo}>
-            <Text style={styles.retailerName}>{retailer.name}</Text>
-            <Text style={styles.retailerPhone}>{retailer.phone}</Text>
-          </View>
-          <View style={styles.bitBadge}>
-            <Ionicons name="location-outline" size={16} color="#007AFF" />
-            <Text style={styles.bitText}>{retailer.bit}</Text>
-          </View>
-        </View>
-      </TouchableOpacity>
-      
-      <TouchableOpacity 
-        style={styles.deleteButton}
-        onPress={() => handleDeleteRetailer(retailer)}
-      >
-        <Ionicons name="trash-outline" size={20} color="#FF3B30" />
-      </TouchableOpacity>
-    </View>
-  );
+  const handleAddRetailer = useCallback(() => {
+    router.push('/retailers/new-retailer');
+  }, [router]);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
       
       {/* Search Bar */}
-      <SearchBar />
+      <SearchBar 
+        searchQuery={searchQuery}
+        onSearchChange={handleSearchChange}
+        onFilterPress={handleOpenFilterModal}
+      />
 
       {/* Retailers List */}
       <ScrollView style={styles.retailersContainer} showsVerticalScrollIndicator={false}>
         <View style={styles.retailersHeader}>
           <Text style={styles.retailersTitle}>
-            Retailers ({retailers.length})
+            Retailers ({filteredRetailers.length})
           </Text>
           <TouchableOpacity 
             style={styles.addButton}
-            onPress={() => router.push('/retailers/new-retailer')}
+            onPress={handleAddRetailer}
           >
             <Ionicons name="add" size={24} color="#007AFF" />
           </TouchableOpacity>
@@ -188,15 +305,30 @@ export default function RetailersScreen() {
               <ActivityIndicator size="large" color="#007AFF" />
               <Text style={styles.loadingText}>Loading retailers...</Text>
             </View>
-          ) : retailers.length > 0 ? (
-            retailers.map((retailer) => (
-              <RetailerCard key={retailer._id} retailer={retailer} />
+          ) : filteredRetailers.length > 0 ? (
+            filteredRetailers.map((retailer) => (
+              <RetailerCard 
+                key={retailer._id} 
+                retailer={retailer}
+                onPress={handleRetailerPress}
+                onEdit={handleEditRetailer}
+                onDelete={handleDeleteRetailer}
+              />
             ))
           ) : (
             <View style={styles.emptyState}>
               <Ionicons name="storefront-outline" size={64} color="#ccc" />
-              <Text style={styles.emptyText}>No retailers found</Text>
-              <Text style={styles.emptySubtext}>Try adjusting your search or bit selection</Text>
+              <Text style={styles.emptyText}>
+                {searchQuery.trim() ? 'No Matching Retailers' : 'No Retailers Found'}
+              </Text>
+              <Text style={styles.emptySubtext}>
+                {searchQuery.trim() 
+                  ? `No retailers found for "${searchQuery}"`
+                  : bitsFilter !== 'all'
+                    ? 'Try adjusting your bit selection'
+                    : 'Add some retailers to get started'
+                }
+              </Text>
             </View>
           )}
         </View>
@@ -235,7 +367,7 @@ export default function RetailersScreen() {
             <View style={styles.filterSection}>
               <Text style={styles.filterSectionTitle}>Bits</Text>
               <View style={styles.filterOptions}>
-                {bits.map((option) => (
+                {bitsOptions.map((option) => (
                   <TouchableOpacity
                     key={option.value}
                     style={[
@@ -272,7 +404,6 @@ export default function RetailersScreen() {
           </View>
         </View>
       </Modal>
-
     </SafeAreaView>
   );
 }
@@ -346,6 +477,19 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 16,
   },
+  actionButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingRight: 8,
+  },
+  editButton: {
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: '#F0F8FF',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   retailerHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -379,7 +523,9 @@ const styles = StyleSheet.create({
     color: '#007AFF',
   },
   deleteButton: {
-    padding: 16,
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: '#FFF5F5',
     justifyContent: 'center',
     alignItems: 'center',
   },
