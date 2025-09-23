@@ -26,33 +26,35 @@ const RetailerCard = React.memo(({
       style={styles.retailerContent}
       onPress={() => onPress(retailer)}
     >
-      <View style={styles.retailerHeader}>
-        <View style={styles.retailerInfo}>
-          <Text style={styles.retailerName}>{retailer.name}</Text>
-          <Text style={styles.retailerPhone}>{retailer.phone}</Text>
-        </View>
+      {/* Retailer Name - Full Width */}
+      <View style={styles.retailerNameRow}>
+        <Text style={styles.retailerName}>{retailer.name}</Text>
+      </View>
+      
+      {/* Phone, Bit and Action Buttons Row */}
+      <View style={styles.phoneBitActionsRow}>
+        <Text style={styles.retailerPhone}>{retailer.phone}</Text>
         <View style={styles.bitBadge}>
           <Ionicons name="location-outline" size={16} color="#007AFF" />
           <Text style={styles.bitText}>{retailer.bit}</Text>
         </View>
+        <View style={styles.actionButtons}>
+          <TouchableOpacity 
+            style={styles.editButton}
+            onPress={() => onEdit(retailer)}
+          >
+            <Ionicons name="create-outline" size={20} color="#007AFF" />
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={styles.deleteButton}
+            onPress={() => onDelete(retailer)}
+          >
+            <Ionicons name="trash-outline" size={20} color="#FF3B30" />
+          </TouchableOpacity>
+        </View>
       </View>
     </TouchableOpacity>
-    
-    <View style={styles.actionButtons}>
-      <TouchableOpacity 
-        style={styles.editButton}
-        onPress={() => onEdit(retailer)}
-      >
-        <Ionicons name="create-outline" size={20} color="#007AFF" />
-      </TouchableOpacity>
-      
-      <TouchableOpacity 
-        style={styles.deleteButton}
-        onPress={() => onDelete(retailer)}
-      >
-        <Ionicons name="trash-outline" size={20} color="#FF3B30" />
-      </TouchableOpacity>
-    </View>
   </View>
 ));
 
@@ -490,19 +492,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  retailerHeader: {
+  retailerNameRow: {
+    marginBottom: 8,
+  },
+  phoneBitActionsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-  },
-  retailerInfo: {
-    flex: 1,
   },
   retailerName: {
     fontSize: 16,
     fontWeight: 'bold',
     color: '#1a1a1a',
-    marginBottom: 4,
   },
   retailerPhone: {
     fontSize: 14,

@@ -24,11 +24,9 @@ const OrderCard = React.memo(({
     style={styles.orderCard}
     onPress={() => onPress(order)}
   >
+    {/* First Row: Order Number and Status */}
     <View style={styles.orderHeader}>
-      <View style={styles.orderInfo}>
-        <Text style={styles.orderNumber}>{order.orderNumber}</Text>
-        <Text style={styles.counterName}>{order.counterName}</Text>
-      </View>
+      <Text style={styles.orderNumber}>{order.orderNumber}</Text>
       <View style={[
         styles.statusBadge,
         { backgroundColor: order.status === 'Completed' ? '#4CAF50' : '#FF9800' }
@@ -37,37 +35,42 @@ const OrderCard = React.memo(({
       </View>
     </View>
     
-    <View style={styles.orderDetails}>
-      <View style={styles.detailRow}>
-        <View style={styles.detailItem}>
-          <Ionicons name="location-outline" size={16} color="#666" />
-          <Text style={styles.detailText}>{order.bit}</Text>
-        </View>
-        <View style={styles.orderHeaderRight}>
-          <TouchableOpacity 
-            style={styles.editButton}
-            onPress={() => onEdit(order)}
-          >
-            <Ionicons name="create-outline" size={18} color="#007AFF" />
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={styles.deleteButton}
-            onPress={() => onDelete(order)}
-          >
-            <Ionicons name="trash-outline" size={18} color="#FF3B30" />
-          </TouchableOpacity>
-        </View>
+    {/* Second Row: Retailer Name (full width) */}
+    <View style={styles.retailerRow}>
+      <Text style={styles.counterName}>{order.counterName}</Text>
+    </View>
+    
+    {/* Third Row: Bit Name and Action Buttons */}
+    <View style={styles.bitAndActionsRow}>
+      <View style={styles.detailItem}>
+        <Ionicons name="location-outline" size={16} color="#666" />
+        <Text style={styles.detailText}>{order.bit}</Text>
       </View>
-      
-      <View style={styles.detailRow}>
-        <View style={styles.detailItem}>
-          <Ionicons name="cube-outline" size={16} color="#666" />
-          <Text style={styles.detailText}>{order.totalItems} items</Text>
-        </View>
-        <View style={styles.detailItem}>
-          <Ionicons name="calendar-outline" size={16} color="#666" />
-          <Text style={styles.detailText}>{order.date}</Text>
-        </View>
+      <View style={styles.actionButtons}>
+        <TouchableOpacity 
+          style={styles.editButton}
+          onPress={() => onEdit(order)}
+        >
+          <Ionicons name="create-outline" size={18} color="#007AFF" />
+        </TouchableOpacity>
+        <TouchableOpacity 
+          style={styles.deleteButton}
+          onPress={() => onDelete(order)}
+        >
+          <Ionicons name="trash-outline" size={18} color="#FF3B30" />
+        </TouchableOpacity>
+      </View>
+    </View>
+    
+    {/* Fourth Row: Total Items and Date */}
+    <View style={styles.itemsAndDateRow}>
+      <View style={styles.detailItem}>
+        <Ionicons name="cube-outline" size={16} color="#666" />
+        <Text style={styles.detailText}>{order.totalItems} items</Text>
+      </View>
+      <View style={styles.detailItem}>
+        <Ionicons name="calendar-outline" size={16} color="#666" />
+        <Text style={styles.detailText}>{order.date}</Text>
       </View>
     </View>
   </TouchableOpacity>
@@ -628,12 +631,26 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 8,
   },
-  orderHeaderRight: {
+  retailerRow: {
+    marginBottom: 8,
+  },
+  bitAndActionsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  itemsAndDateRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  actionButtons: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 8,
   },
   editButton: {
     padding: 8,
@@ -645,14 +662,10 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: '#FFF5F5',
   },
-  orderInfo: {
-    flex: 1,
-  },
   orderNumber: {
     fontSize: 14,
     fontWeight: '600',
     color: '#007AFF',
-    marginBottom: 2,
   },
   counterName: {
     fontSize: 16,
@@ -668,13 +681,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     color: '#ffffff',
-  },
-  orderDetails: {
-    gap: 8,
-  },
-  detailRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
   },
   detailItem: {
     flexDirection: 'row',
