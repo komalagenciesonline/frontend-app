@@ -141,6 +141,14 @@ export const productAPI = {
   getUniqueBrandNames: async (): Promise<string[]> => {
     return apiCall<string[]>('/products/brands/unique');
   },
+
+  // Update product order
+  updateOrder: async (productOrders: { productId: string; order: number }[]): Promise<{ message: string }> => {
+    return apiCall<{ message: string }>('/products/order', {
+      method: 'PUT',
+      body: JSON.stringify({ productOrders }),
+    });
+  },
 };
 
 // Brand API functions

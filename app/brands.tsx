@@ -106,6 +106,21 @@ export default function BrandsScreen() {
       </View>
       
       <View style={styles.brandActions}>
+        {brand.productCount > 0 && (
+          <TouchableOpacity 
+            style={styles.manageButton}
+            onPress={() => router.push({
+              pathname: '/products/manage-products',
+              params: {
+                brandId: brand._id,
+                brandName: brand.name
+              }
+            })}
+          >
+            <Ionicons name="reorder-three-outline" size={20} color="#007AFF" />
+            <Text style={styles.manageButtonText}>Manage</Text>
+          </TouchableOpacity>
+        )}
         {brand.productCount === 0 && (
           <View style={styles.emptyBrandBadge}>
             <Text style={styles.emptyBrandText}>Empty</Text>
@@ -299,6 +314,20 @@ const styles = StyleSheet.create({
   },
   brandActions: {
     alignItems: 'flex-end',
+  },
+  manageButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f0f8ff',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    gap: 4,
+  },
+  manageButtonText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#007AFF',
   },
   emptyBrandBadge: {
     backgroundColor: '#FFF5F5',
