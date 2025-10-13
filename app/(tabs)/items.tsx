@@ -324,6 +324,12 @@ export default function ItemsScreen() {
               <Ionicons name="trash-outline" size={20} color={isCleaningUp ? "#999" : "#FF3B30"} />
             </TouchableOpacity>
             <TouchableOpacity 
+              style={styles.analyticsButton}
+              onPress={() => router.push('/items/item-analytics')}
+            >
+              <Ionicons name="analytics-outline" size={20} color="#34C759" />
+            </TouchableOpacity>
+            <TouchableOpacity 
               style={styles.brandsButton}
               onPress={handleNavigateToBrands}
             >
@@ -502,6 +508,13 @@ const styles = StyleSheet.create({
   },
   cleanupButtonDisabled: {
     backgroundColor: '#F5F5F5',
+  },
+  analyticsButton: {
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: '#F0FFF0',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   brandsButton: {
     padding: 8,
