@@ -118,14 +118,6 @@ export interface PopularProduct {
   avgQuantityPerOrder: number;
 }
 
-export interface BrandPerformance {
-  _id: string;
-  orderCount: number;
-  totalQuantity: number;
-  totalRevenue: number;
-  avgOrderValue: number;
-  uniqueProductCount: number;
-}
 
 export interface ProductDistribution {
   _id: string;
@@ -255,10 +247,6 @@ export const productAPI = {
       return apiCall<PopularProduct[]>(`/products/analytics/popular?limit=${limit}`);
     },
 
-    // Get brand performance analytics
-    brandPerformance: async (): Promise<BrandPerformance[]> => {
-      return apiCall<BrandPerformance[]>('/products/analytics/brand-performance');
-    },
 
     // Get product distribution by brand
     distribution: async (): Promise<ProductDistribution[]> => {

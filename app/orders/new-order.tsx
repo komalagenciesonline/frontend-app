@@ -244,7 +244,7 @@ export default function NewOrderScreen() {
 
                   {/* Quantity Selection */}
                   <View style={styles.quantitySection}>
-                    <TouchableOpacity
+                    <View
                       style={[
                         styles.quantityControls,
                         (productSelections[product._id]?.quantity || 0) > 0 && styles.quantityControlsSelected
@@ -260,12 +260,22 @@ export default function NewOrderScreen() {
                           color={(productSelections[product._id]?.quantity || 0) > 0 ? "#ffffff" : "#8B5CF6"} 
                         />
                       </TouchableOpacity>
-                      <Text style={[
-                        styles.quantityText,
-                        (productSelections[product._id]?.quantity || 0) > 0 && styles.quantityTextSelected
-                      ]}>
-                        {productSelections[product._id]?.quantity || 0}
-                      </Text>
+                      <TextInput
+                        style={[
+                          styles.quantityInput,
+                          (productSelections[product._id]?.quantity || 0) > 0 && styles.quantityInputSelected
+                        ]}
+                        value={productSelections[product._id]?.quantity?.toString() || '0'}
+                        onChangeText={(text) => {
+                          const numericValue = parseInt(text) || 0;
+                          handleQuantityChange(product._id, Math.max(0, numericValue));
+                        }}
+                        keyboardType="numeric"
+                        selectTextOnFocus
+                        maxLength={6}
+                        placeholder="0"
+                        placeholderTextColor="#8B5CF6"
+                      />
                       <TouchableOpacity
                         style={styles.quantityButton}
                         onPress={() => handleQuantityChange(product._id, (productSelections[product._id]?.quantity || 0) + 1)}
@@ -276,7 +286,7 @@ export default function NewOrderScreen() {
                           color={(productSelections[product._id]?.quantity || 0) > 0 ? "#ffffff" : "#8B5CF6"} 
                         />
                       </TouchableOpacity>
-                    </TouchableOpacity>
+                    </View>
                   </View>
                 </View>
                 
@@ -854,15 +864,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  quantityText: {
+  quantityInput: {
     fontSize: 16,
     fontWeight: '600',
     color: '#8B5CF6',
-    paddingHorizontal: 12,
-    minWidth: 30,
+    paddingHorizontal: 8,
+    minWidth: 40,
     textAlign: 'center',
+    backgroundColor: 'transparent',
+    borderWidth: 0,
   },
-  quantityTextSelected: {
+  quantityInputSelected: {
     color: '#ffffff',
   },
   notesSection: {

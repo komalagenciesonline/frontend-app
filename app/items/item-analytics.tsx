@@ -3,33 +3,8 @@ import { useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, RefreshControl, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { api, ProductAnalytics, PopularProduct, BrandPerformance, ProductDistribution, RecentActivity } from '../../utils/api';
+import { api, ProductAnalytics, PopularProduct, ProductDistribution, RecentActivity } from '../../utils/api';
 
-// Analytics Card Component
-const AnalyticsCard = ({ 
-  title, 
-  value, 
-  icon, 
-  color, 
-  subtitle 
-}: { 
-  title: string; 
-  value: string | number; 
-  icon: string; 
-  color: string;
-  subtitle?: string;
-}) => (
-  <View style={[styles.analyticsCard, { borderLeftColor: color }]}>
-    <View style={styles.cardContent}>
-      <View style={styles.cardHeader}>
-        <Ionicons name={icon as any} size={24} color={color} />
-        <Text style={styles.cardValue}>{value}</Text>
-      </View>
-      <Text style={styles.cardTitle}>{title}</Text>
-      {subtitle && <Text style={styles.cardSubtitle}>{subtitle}</Text>}
-    </View>
-  </View>
-);
 
 // Popular Products List Component
 const PopularProductsList = ({ products }: { products: PopularProduct[] }) => (
@@ -55,29 +30,6 @@ const PopularProductsList = ({ products }: { products: PopularProduct[] }) => (
   </View>
 );
 
-// Brand Performance List Component
-const BrandPerformanceList = ({ brands }: { brands: BrandPerformance[] }) => (
-  <View style={styles.section}>
-    <Text style={styles.sectionTitle}>Brand Performance</Text>
-    <View style={styles.brandsList}>
-      {brands.slice(0, 5).map((brand, index) => (
-        <View key={brand._id} style={styles.brandItem}>
-          <View style={styles.brandRank}>
-            <Text style={styles.rankNumber}>{index + 1}</Text>
-          </View>
-          <View style={styles.brandInfo}>
-            <Text style={styles.brandName}>{brand._id}</Text>
-            <Text style={styles.brandProducts}>{brand.uniqueProductCount} products</Text>
-          </View>
-          <View style={styles.brandStats}>
-            <Text style={styles.statValue}>{brand.orderCount}</Text>
-            <Text style={styles.statLabel}>orders</Text>
-          </View>
-        </View>
-      ))}
-    </View>
-  </View>
-);
 
 // Recent Activity List Component
 const RecentActivityList = ({ activities }: { activities: RecentActivity[] }) => (
@@ -111,7 +63,6 @@ export default function ItemAnalyticsScreen() {
   // Analytics data states
   const [analytics, setAnalytics] = useState<ProductAnalytics | null>(null);
   const [popularProducts, setPopularProducts] = useState<PopularProduct[]>([]);
-  const [brandPerformance, setBrandPerformance] = useState<BrandPerformance[]>([]);
   const [productDistribution, setProductDistribution] = useState<ProductDistribution[]>([]);
   const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
 
@@ -123,20 +74,17 @@ export default function ItemAnalyticsScreen() {
       const [
         analyticsData,
         popularData,
-        brandData,
         distributionData,
         activityData
       ] = await Promise.all([
         api.products.getAnalytics.overview(),
         api.products.getAnalytics.popular(10),
-        api.products.getAnalytics.brandPerformance(),
         api.products.getAnalytics.distribution(),
         api.products.getAnalytics.recentActivity(7)
       ]);
 
       setAnalytics(analyticsData);
       setPopularProducts(popularData);
-      setBrandPerformance(brandData);
       setProductDistribution(distributionData);
       setRecentActivity(activityData);
     } catch (error) {
@@ -158,10 +106,6 @@ export default function ItemAnalyticsScreen() {
     setRefreshing(false);
   }, [loadAnalyticsData]);
 
-  // Calculate summary stats
-  const totalRevenue = brandPerformance.reduce((sum, brand) => sum + brand.totalRevenue, 0);
-  const totalOrders = brandPerformance.reduce((sum, brand) => sum + brand.orderCount, 0);
-  const avgOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -198,36 +142,6 @@ export default function ItemAnalyticsScreen() {
           </View>
         ) : (
           <>
-            {/* Overview Cards */}
-            <View style={styles.overviewSection}>
-              <Text style={styles.sectionTitle}>Overview</Text>
-              <View style={styles.cardsGrid}>
-                <AnalyticsCard
-                  title="Total Products"
-                  value={analytics?.totalProducts || 0}
-                  icon="cube-outline"
-                  color="#007AFF"
-                />
-                <AnalyticsCard
-                  title="Total Revenue"
-                  value={`₹${totalRevenue.toLocaleString()}`}
-                  icon="cash-outline"
-                  color="#34C759"
-                />
-                <AnalyticsCard
-                  title="Total Orders"
-                  value={totalOrders}
-                  icon="receipt-outline"
-                  color="#FF9500"
-                />
-                <AnalyticsCard
-                  title="Avg Order Value"
-                  value={`₹${avgOrderValue.toFixed(0)}`}
-                  icon="trending-up-outline"
-                  color="#AF52DE"
-                />
-              </View>
-            </View>
 
             {/* Brand Distribution */}
             {productDistribution.length > 0 && (
@@ -262,10 +176,6 @@ export default function ItemAnalyticsScreen() {
               <PopularProductsList products={popularProducts} />
             )}
 
-            {/* Brand Performance */}
-            {brandPerformance.length > 0 && (
-              <BrandPerformanceList brands={brandPerformance} />
-            )}
 
             {/* Recent Activity */}
             {recentActivity.length > 0 && (
@@ -316,9 +226,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#666666',
   },
-  overviewSection: {
-    padding: 20,
-  },
   section: {
     paddingHorizontal: 20,
     paddingBottom: 20,
@@ -328,51 +235,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#1a1a1a',
     marginBottom: 15,
-  },
-  cardsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    gap: 12,
-  },
-  analyticsCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
-    padding: 16,
-    width: '48%',
-    borderLeftWidth: 4,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 5,
-  },
-  cardContent: {
-    flex: 1,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  cardValue: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
-  },
-  cardTitle: {
-    fontSize: 14,
-    color: '#666666',
-    fontWeight: '500',
-  },
-  cardSubtitle: {
-    fontSize: 12,
-    color: '#999999',
-    marginTop: 2,
   },
   distributionList: {
     gap: 12,
@@ -464,40 +326,6 @@ const styles = StyleSheet.create({
   statLabel: {
     fontSize: 12,
     color: '#666666',
-  },
-  brandsList: {
-    gap: 12,
-  },
-  brandItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
-    padding: 16,
-    gap: 12,
-  },
-  brandRank: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: '#FF9500',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  brandInfo: {
-    flex: 1,
-  },
-  brandName: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
-  },
-  brandProducts: {
-    fontSize: 14,
-    color: '#666666',
-  },
-  brandStats: {
-    alignItems: 'flex-end',
   },
   activityList: {
     gap: 12,
