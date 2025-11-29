@@ -17,10 +17,18 @@ interface SelectedItem {
 
 export default function NewOrderScreen() {
   const router = useRouter();
-  const { retailerName, retailerPhone, retailerBit } = useLocalSearchParams<{ 
+  const { 
+    retailerName, 
+    retailerPhone, 
+    retailerBit,
+    orderItems,
+    orderDate
+  } = useLocalSearchParams<{ 
     retailerName: string;
     retailerPhone: string;
     retailerBit: string;
+    orderItems?: string;
+    orderDate?: string;
   }>();
   
   const [isModalVisible, setIsModalVisible] = useState(false);
@@ -32,6 +40,33 @@ export default function NewOrderScreen() {
   const [isDragging, setIsDragging] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [isDatePickerVisible, setIsDatePickerVisible] = useState(false);
+
+  // Restore selected items from URL params when component mounts or params change
+  useEffect(() => {
+    if (orderItems) {
+      try {
+        const parsedItems: SelectedItem[] = JSON.parse(orderItems);
+        setSelectedItems(parsedItems);
+      } catch (error) {
+        console.error('Error parsing order items from params:', error);
+        // If parsing fails, keep the current state
+      }
+    }
+  }, [orderItems]);
+
+  // Restore selected date from URL params
+  useEffect(() => {
+    if (orderDate) {
+      try {
+        const parsedDate = new Date(orderDate);
+        if (!isNaN(parsedDate.getTime())) {
+          setSelectedDate(parsedDate);
+        }
+      } catch (error) {
+        console.error('Error parsing order date from params:', error);
+      }
+    }
+  }, [orderDate]);
 
   // Load products and brands data
   useEffect(() => {

@@ -385,6 +385,71 @@ export default function OrdersScreen() {
     setTempBitsFilter('all');
   }, []);
 
+  // Function to get orders that are completed and 31+ days old
+  const getOldCompletedOrders = (allOrders: Order[]): Order[] => {
+    const today = new Date();
+    const thirtyOneDaysAgo = new Date(today);
+    thirtyOneDaysAgo.setDate(today.getDate() - 31);
+    
+    return allOrders.filter(order => {
+      if (order.status !== 'Completed') return false;
+      
+      // Parse the date (format: DD/MM/YYYY)
+      const [day, month, year] = order.date.split('/');
+      const orderDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+      
+      return orderDate <= thirtyOneDaysAgo;
+    });
+  };
+
+  // Handle cleanup of old orders
+  const handleCleanupOldOrders = useCallback(async () => {
+    try {
+      // Get all orders from the server (not just filtered ones)
+      const allOrders = await api.orders.getAll();
+      const oldOrders = getOldCompletedOrders(allOrders);
+      
+      if (oldOrders.length === 0) {
+        Alert.alert('No Old Orders', 'There are no completed orders older than 31 days to clean up.');
+        return;
+      }
+
+      // Show confirmation before deleting
+      Alert.alert(
+        'Delete Old Orders',
+        `Found ${oldOrders.length} completed order(s) older than 31 days. Do you want to delete them?`,
+        [
+          {
+            text: 'Cancel',
+            style: 'cancel',
+          },
+          {
+            text: 'Delete',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                // Delete old orders from database
+                const orderIds = oldOrders.map(order => order._id);
+                await api.orders.deleteOldCompleted(orderIds);
+                
+                // Refresh the orders list
+                await loadOrders();
+                
+                Alert.alert('Success', `${oldOrders.length} order(s) have been deleted successfully.`);
+              } catch (error) {
+                console.error('Error deleting orders:', error);
+                Alert.alert('Error', 'Failed to delete orders. Please try again.');
+              }
+            },
+          },
+        ]
+      );
+    } catch (error) {
+      console.error('Error cleaning up orders:', error);
+      Alert.alert('Error', 'Failed to process cleanup. Please try again.');
+    }
+  }, [loadOrders]);
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
@@ -413,6 +478,12 @@ export default function OrdersScreen() {
           <Text style={styles.ordersTitle}>
             Orders ({filteredOrders.length})
           </Text>
+          <TouchableOpacity 
+            style={styles.cleanupButton}
+            onPress={handleCleanupOldOrders}
+          >
+            <Ionicons name="brush-outline" size={24} color="#666" />
+          </TouchableOpacity>
         </View>
         
         <View style={styles.ordersList}>
@@ -603,12 +674,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   ordersHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     paddingVertical: 15,
   },
   ordersTitle: {
     fontSize: 18,
     fontWeight: 'bold',
     color: '#1a1a1a',
+  },
+  cleanupButton: {
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: '#f5f5f5',
   },
   ordersList: {
     gap: 12,

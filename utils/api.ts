@@ -382,6 +382,14 @@ export const orderAPI = {
   getRecent: async (limit: number = 3): Promise<Order[]> => {
     return apiCall<Order[]>(`/orders/recent/${limit}`);
   },
+
+  // Delete old completed orders (31+ days old)
+  deleteOldCompleted: async (orderIds: string[]): Promise<{ message: string; deletedCount: number }> => {
+    return apiCall<{ message: string; deletedCount: number }>('/orders/cleanup/old-completed', {
+      method: 'POST',
+      body: JSON.stringify({ orderIds }),
+    });
+  },
 };
 
 // Retailer API functions

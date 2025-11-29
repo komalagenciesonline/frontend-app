@@ -104,7 +104,19 @@ export default function OrderSummaryScreen() {
       <View style={styles.header}>
         <TouchableOpacity 
           style={styles.backButton}
-          onPress={() => router.back()}
+          onPress={() => {
+            // Navigate back to new-order screen with the current items preserved
+            router.push({
+              pathname: '/orders/new-order',
+              params: {
+                retailerName: retailerName || 'N/A',
+                retailerPhone: retailerPhone || 'N/A',
+                retailerBit: retailerBit || 'N/A',
+                orderItems: orderItems, // Pass back the items so they're preserved
+                orderDate: orderDate || new Date().toISOString()
+              }
+            });
+          }}
         >
           <Ionicons name="arrow-back" size={24} color="#007AFF" />
         </TouchableOpacity>
@@ -173,7 +185,19 @@ export default function OrderSummaryScreen() {
       <View style={styles.actionButtons}>
         <TouchableOpacity 
           style={styles.cancelButton}
-          onPress={() => router.back()}
+          onPress={() => {
+            // Navigate back to new-order screen with the current items preserved
+            router.push({
+              pathname: '/orders/new-order',
+              params: {
+                retailerName: retailerName || 'N/A',
+                retailerPhone: retailerPhone || 'N/A',
+                retailerBit: retailerBit || 'N/A',
+                orderItems: orderItems, // Pass back the items so they're preserved
+                orderDate: orderDate || new Date().toISOString()
+              }
+            });
+          }}
         >
           <Text style={styles.cancelButtonText}>Back to Order</Text>
         </TouchableOpacity>

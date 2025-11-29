@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Image, Modal, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, Modal, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { api, Brand, Order, OrderItem, Product } from '../../utils/api';
 
@@ -83,7 +83,7 @@ export default function EditOrderScreen() {
     setIsModalVisible(true);
   };
 
-  const handleAddToOrder = (product: Product, unit: 'Pc' | 'Outer' | 'Case', quantity: number) => {
+  const handleAddToOrder = (product: Product, unit: 'Pc' | 'Outer' | 'Case', quantity: number, productNotes?: string) => {
     setOrderItems(prevItems => {
       const existingItemIndex = prevItems.findIndex(
         item => item.productId === product._id && item.unit === unit
@@ -93,6 +93,7 @@ export default function EditOrderScreen() {
         // Update existing item
         const updatedItems = [...prevItems];
         updatedItems[existingItemIndex].quantity = quantity;
+        updatedItems[existingItemIndex].productNotes = productNotes || '';
         return updatedItems;
       } else {
         // Add new item
@@ -101,7 +102,8 @@ export default function EditOrderScreen() {
           productName: product.name,
           brandName: selectedBrand?.name || 'Unknown Brand',
           unit,
-          quantity
+          quantity,
+          productNotes: productNotes || ''
         };
         return [...prevItems, newItem];
       }
@@ -119,6 +121,17 @@ export default function EditOrderScreen() {
       
       // Remove items with quantity 0
       return updatedItems.filter(item => item.quantity > 0);
+    });
+  };
+
+  const handleUpdateNotes = (productId: string, unit: 'Pc' | 'Outer' | 'Case', productNotes: string) => {
+    setOrderItems(prevItems => {
+      return prevItems.map(item => {
+        if (item.productId === productId && item.unit === unit) {
+          return { ...item, productNotes: productNotes || '' };
+        }
+        return item;
+      });
     });
   };
 
@@ -250,14 +263,15 @@ export default function EditOrderScreen() {
   };
 
   const ProductModal = () => {
-    const [productSelections, setProductSelections] = useState<{[key: string]: {unit: 'Pc' | 'Outer' | 'Case', quantity: number}}>({});
+    const [productSelections, setProductSelections] = useState<{[key: string]: {unit: 'Pc' | 'Outer' | 'Case', quantity: number, productNotes: string}}>({});
 
     const handleUnitChange = (productId: string, unit: 'Pc' | 'Outer' | 'Case') => {
       setProductSelections(prev => ({
         ...prev,
         [productId]: {
           unit,
-          quantity: prev[productId]?.quantity || 0
+          quantity: prev[productId]?.quantity || 0,
+          productNotes: prev[productId]?.productNotes || ''
         }
       }));
     };
@@ -267,7 +281,19 @@ export default function EditOrderScreen() {
         ...prev,
         [productId]: {
           unit: prev[productId]?.unit || 'Pc',
-          quantity: Math.max(0, quantity)
+          quantity: Math.max(0, quantity),
+          productNotes: prev[productId]?.productNotes || ''
+        }
+      }));
+    };
+
+    const handleNotesChange = (productId: string, productNotes: string) => {
+      setProductSelections(prev => ({
+        ...prev,
+        [productId]: {
+          unit: prev[productId]?.unit || 'Pc',
+          quantity: prev[productId]?.quantity || 0,
+          productNotes
         }
       }));
     };
@@ -277,7 +303,7 @@ export default function EditOrderScreen() {
         if (selection.quantity > 0) {
           const product = products.find(p => p._id === productId);
           if (product) {
-            handleAddToOrder(product, selection.unit, selection.quantity);
+            handleAddToOrder(product, selection.unit, selection.quantity, selection.productNotes);
           }
         }
       });
@@ -346,7 +372,7 @@ export default function EditOrderScreen() {
 
                   {/* Quantity Selection */}
                   <View style={styles.quantitySection}>
-                    <TouchableOpacity
+                    <View
                       style={[
                         styles.quantityControls,
                         (productSelections[product._id]?.quantity || 0) > 0 && styles.quantityControlsSelected
@@ -362,12 +388,22 @@ export default function EditOrderScreen() {
                           color={(productSelections[product._id]?.quantity || 0) > 0 ? "#ffffff" : "#8B5CF6"} 
                         />
                       </TouchableOpacity>
-                      <Text style={[
-                        styles.quantityText,
-                        (productSelections[product._id]?.quantity || 0) > 0 && styles.quantityTextSelected
-                      ]}>
-                        {productSelections[product._id]?.quantity || 0}
-                      </Text>
+                      <TextInput
+                        style={[
+                          styles.quantityInput,
+                          (productSelections[product._id]?.quantity || 0) > 0 && styles.quantityInputSelected
+                        ]}
+                        value={productSelections[product._id]?.quantity?.toString() || '0'}
+                        onChangeText={(text) => {
+                          const numericValue = parseInt(text) || 0;
+                          handleQuantityChange(product._id, Math.max(0, numericValue));
+                        }}
+                        keyboardType="numeric"
+                        selectTextOnFocus
+                        maxLength={6}
+                        placeholder="0"
+                        placeholderTextColor="#8B5CF6"
+                      />
                       <TouchableOpacity
                         style={styles.quantityButton}
                         onPress={() => handleQuantityChange(product._id, (productSelections[product._id]?.quantity || 0) + 1)}
@@ -375,11 +411,26 @@ export default function EditOrderScreen() {
                         <Ionicons 
                           name="add" 
                           size={16} 
-                          color={(productSelections[product._id]?.quantity || 0) ? "#ffffff" : "#8B5CF6"} 
+                          color={(productSelections[product._id]?.quantity || 0) > 0 ? "#ffffff" : "#8B5CF6"} 
                         />
                       </TouchableOpacity>
-                    </TouchableOpacity>
+                    </View>
                   </View>
+                </View>
+                
+                {/* Notes Input */}
+                <View style={styles.notesSection}>
+                  <Text style={styles.notesLabel}>Notes (Optional)</Text>
+                  <TextInput
+                    style={styles.notesInput}
+                    placeholder="Add notes for this product..."
+                    placeholderTextColor="#999"
+                    value={productSelections[product._id]?.productNotes || ''}
+                    onChangeText={(text) => handleNotesChange(product._id, text)}
+                    multiline
+                    numberOfLines={2}
+                    maxLength={500}
+                  />
                 </View>
               </View>
             ))}
@@ -391,11 +442,13 @@ export default function EditOrderScreen() {
 
   const OrderItemCard = ({ item }: { item: OrderItem }) => (
     <View style={styles.orderItemCard}>
+      {/* Product Info Section */}
       <View style={styles.orderItemInfo}>
         <Text style={styles.orderItemName}>{item.productName}</Text>
         <Text style={styles.orderItemBrand}>{item.brandName} • {item.unit}</Text>
       </View>
       
+      {/* Controls Section: Quantity and Delete */}
       <View style={styles.orderItemControls}>
         <View style={styles.quantityControls}>
           <TouchableOpacity
@@ -404,7 +457,17 @@ export default function EditOrderScreen() {
           >
             <Ionicons name="remove" size={16} color="#8B5CF6" />
           </TouchableOpacity>
-          <Text style={styles.quantityText}>{item.quantity}</Text>
+          <TextInput
+            style={styles.quantityTextInput}
+            value={item.quantity.toString()}
+            onChangeText={(text) => {
+              const numericValue = parseInt(text) || 0;
+              handleUpdateQuantity(item.productId, item.unit, Math.max(0, numericValue));
+            }}
+            keyboardType="numeric"
+            selectTextOnFocus
+            maxLength={6}
+          />
           <TouchableOpacity
             style={styles.quantityButton}
             onPress={() => handleUpdateQuantity(item.productId, item.unit, item.quantity + 1)}
@@ -419,6 +482,21 @@ export default function EditOrderScreen() {
         >
           <Ionicons name="trash-outline" size={16} color="#FF3B30" />
         </TouchableOpacity>
+      </View>
+      
+      {/* Notes Section */}
+      <View style={styles.orderItemNotesSection}>
+        <Text style={styles.notesLabel}>Notes (Optional)</Text>
+        <TextInput
+          style={styles.notesInput}
+          placeholder="Add notes for this product..."
+          placeholderTextColor="#999"
+          value={item.productNotes || ''}
+          onChangeText={(text) => handleUpdateNotes(item.productId, item.unit, text)}
+          multiline
+          numberOfLines={2}
+          maxLength={500}
+        />
       </View>
     </View>
   );
@@ -846,9 +924,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     borderRadius: 12,
     padding: 16,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -859,7 +934,7 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   orderItemInfo: {
-    flex: 1,
+    marginBottom: 12,
   },
   orderItemName: {
     fontSize: 16,
@@ -874,7 +949,8 @@ const styles = StyleSheet.create({
   orderItemControls: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    justifyContent: 'space-between',
+    marginBottom: 12,
   },
   quantityControls: {
     flexDirection: 'row',
@@ -885,6 +961,7 @@ const styles = StyleSheet.create({
     borderColor: '#8B5CF6',
     paddingHorizontal: 4,
     paddingVertical: 2,
+    minWidth: 100,
   },
   quantityButton: {
     padding: 8,
@@ -898,6 +975,50 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     minWidth: 30,
     textAlign: 'center',
+  },
+  quantityTextInput: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#8B5CF6',
+    paddingHorizontal: 8,
+    minWidth: 50,
+    textAlign: 'center',
+    backgroundColor: 'transparent',
+    borderWidth: 0,
+  },
+  orderItemNotesSection: {
+    marginTop: 0,
+  },
+  notesLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 6,
+  },
+  notesInput: {
+    backgroundColor: '#F9FAFB',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
+    color: '#1F2937',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    textAlignVertical: 'top',
+    minHeight: 60,
+  },
+  notesDisplayContainer: {
+    marginTop: 8,
+    padding: 8,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 6,
+    borderLeftWidth: 3,
+    borderLeftColor: '#007AFF',
+  },
+  notesDisplayText: {
+    fontSize: 13,
+    color: '#374151',
+    lineHeight: 18,
   },
   removeButton: {
     padding: 8,
@@ -1055,6 +1176,19 @@ const styles = StyleSheet.create({
   },
   quantityControlsSelected: {
     backgroundColor: '#8B5CF6',
+  },
+  quantityInput: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#8B5CF6',
+    paddingHorizontal: 8,
+    minWidth: 40,
+    textAlign: 'center',
+    backgroundColor: 'transparent',
+    borderWidth: 0,
+  },
+  quantityInputSelected: {
+    color: '#ffffff',
   },
   quantityTextSelected: {
     color: '#ffffff',
