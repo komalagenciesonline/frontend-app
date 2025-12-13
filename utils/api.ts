@@ -63,79 +63,29 @@ export interface DashboardStats {
   totalBits: number;
 }
 
-// Product Analytics Interfaces
-export interface ProductAnalytics {
-  totalProducts: number;
-  productsByBrand: Array<{
-    _id: string;
-    count: number;
-  }>;
-  popularProducts: Array<{
-    _id: {
-      productName: string;
-      brandName: string;
-    };
-    orderCount: number;
-    totalQuantity: number;
-  }>;
-  brandPerformance: Array<{
-    _id: string;
-    orderCount: number;
-    totalQuantity: number;
-    totalRevenue: number;
-  }>;
-  productTrends: Array<{
-    _id: {
-      productName: string;
-      brandName: string;
-    };
-    totalQuantity: number;
-    activeDays: number;
-  }>;
-}
-
-export interface BrandAnalytics {
-  _id: string;
+export interface PendingOrderItem {
+  productId: string;
+  productName: string;
+  brandName: string;
+  unit: 'Pc' | 'Outer' | 'Case';
+  totalQuantity: number;
   orderCount: number;
-  totalQuantity: number;
-  avgQuantityPerOrder: number;
+  orderNumbers: string[];
 }
 
-export interface ProductTrends {
-  _id: string;
-  totalProducts: number;
-  totalQuantity: number;
-  totalOrders: number;
-}
-
-export interface PopularProduct {
-  _id: {
-    productName: string;
-    brandName: string;
+export interface PendingOrderItemsResponse {
+  items: {
+    Pc: PendingOrderItem[];
+    Outer: PendingOrderItem[];
+    Case: PendingOrderItem[];
   };
-  orderCount: number;
-  totalQuantity: number;
-  avgQuantityPerOrder: number;
-}
-
-
-export interface ProductDistribution {
-  _id: string;
-  productCount: number;
-  products: Array<{
-    name: string;
-    id: string;
-  }>;
-}
-
-export interface RecentActivity {
-  _id: {
-    productName: string;
-    brandName: string;
+  totals: {
+    Pc: number;
+    Outer: number;
+    Case: number;
+    totalItems: number;
+    totalOrders: number;
   };
-  recentOrderCount: number;
-  recentQuantity: number;
-  lastOrderDate: string;
 }
 
 // Generic API helper function
@@ -223,40 +173,6 @@ export const productAPI = {
       method: 'PUT',
       body: JSON.stringify({ productOrders }),
     });
-  },
-
-  // Product Analytics API functions
-  getAnalytics: {
-    // Get comprehensive product analytics overview
-    overview: async (): Promise<ProductAnalytics> => {
-      return apiCall<ProductAnalytics>('/products/analytics/overview');
-    },
-
-    // Get product performance by specific brand
-    byBrand: async (brandName: string): Promise<BrandAnalytics[]> => {
-      return apiCall<BrandAnalytics[]>(`/products/analytics/brand/${encodeURIComponent(brandName)}`);
-    },
-
-    // Get product trends over time
-    trends: async (days: number = 30): Promise<ProductTrends[]> => {
-      return apiCall<ProductTrends[]>(`/products/analytics/trends?days=${days}`);
-    },
-
-    // Get most popular products
-    popular: async (limit: number = 10): Promise<PopularProduct[]> => {
-      return apiCall<PopularProduct[]>(`/products/analytics/popular?limit=${limit}`);
-    },
-
-
-    // Get product distribution by brand
-    distribution: async (): Promise<ProductDistribution[]> => {
-      return apiCall<ProductDistribution[]>('/products/analytics/product-distribution');
-    },
-
-    // Get recent product activity
-    recentActivity: async (days: number = 7): Promise<RecentActivity[]> => {
-      return apiCall<RecentActivity[]>(`/products/analytics/recent-activity?days=${days}`);
-    },
   },
 };
 
@@ -389,6 +305,16 @@ export const orderAPI = {
       method: 'POST',
       body: JSON.stringify({ orderIds }),
     });
+  },
+
+  // Get pending order items grouped by unit type
+  getPendingItems: async (brand?: string, bit?: string): Promise<PendingOrderItemsResponse> => {
+    const params = new URLSearchParams();
+    if (brand && brand !== 'all') params.append('brand', brand);
+    if (bit && bit !== 'all') params.append('bit', bit);
+    
+    const queryString = params.toString();
+    return apiCall<PendingOrderItemsResponse>(`/orders/pending-items${queryString ? `?${queryString}` : ''}`);
   },
 };
 
