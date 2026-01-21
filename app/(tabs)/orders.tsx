@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useState, useRef, useMemo } from 'react';
 import { ActivityIndicator, Alert, Dimensions, RefreshControl, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
@@ -151,6 +152,7 @@ export default function OrdersScreen() {
 
   // Refs for cleanup
   const debounceTimeoutRef = useRef<number | null>(null);
+  const lastFetchTimeRef = useRef<number | null>(null);
 
   // Debounce search query to reduce re-renders
   useEffect(() => {
@@ -219,44 +221,61 @@ export default function OrdersScreen() {
     ]
   }), []);
 
-  // Simple load orders function (without search - search is handled client-side)
+  // Load orders with server-side filtering (bit, status, search)
+  // Date filtering is handled client-side since server doesn't support it
   const loadOrders = useCallback(async (customBitsFilter?: string, customStatusFilter?: string) => {
     try {
       setIsLoading(true);
       
       const ordersData = await api.orders.getAll(
         (customBitsFilter || bitsFilter) === 'all' ? undefined : (customBitsFilter || bitsFilter),
-        (customStatusFilter || statusFilter) === 'all' ? undefined : (customStatusFilter || statusFilter)
+        (customStatusFilter || statusFilter) === 'all' ? undefined : (customStatusFilter || statusFilter),
+        debouncedSearchQuery.trim() || undefined
       );
       setOrders(ordersData);
+      lastFetchTimeRef.current = Date.now(); // Mark data as fresh
     } catch (error) {
       console.error('Error loading orders:', error);
       Alert.alert('Error', 'Failed to load orders. Please try again.');
     } finally {
       setIsLoading(false);
     }
-  }, [bitsFilter, statusFilter]);
+  }, [bitsFilter, statusFilter, debouncedSearchQuery]);
 
-  // Load orders ONLY on initial mount
+  // Store latest loadOrders in ref
+  const loadOrdersRef = useRef<((customBitsFilter?: string, customStatusFilter?: string) => Promise<void>) | null>(null);
   useEffect(() => {
-    loadOrders();
-  }, []);
+    loadOrdersRef.current = loadOrders;
+  }, [loadOrders]);
 
-  // Use useMemo for filtering with debounced search query
+  // Load orders when screen comes into focus (only if data is stale)
+  useFocusEffect(
+    useCallback(() => {
+      const now = Date.now();
+      const lastFetch = lastFetchTimeRef.current;
+      
+      // Only skip if data is fresh (less than 30 seconds old)
+      if (lastFetch !== null && (now - lastFetch) < 30000) {
+        return; // Data is still fresh, skip refetch
+      }
+      
+      // Data is stale or first load, fetch fresh data using ref to avoid dependency issues
+      if (loadOrdersRef.current) {
+        loadOrdersRef.current();
+      }
+    }, []) // Empty deps - use ref to access latest loadOrders
+  );
+
+  // Reload when server-side filters change (always reload - filters changed)
+  useEffect(() => {
+    loadOrders(); // Always reload when filters change
+  }, [bitsFilter, statusFilter, debouncedSearchQuery]);
+
+  // Client-side filtering for date (server doesn't support date filtering)
   const filteredOrders = useMemo(() => {
     let filtered = orders;
 
-    // Filter by bits
-    if (bitsFilter !== 'all') {
-      filtered = filtered.filter(order => order.bit === bitsFilter);
-    }
-
-    // Filter by status
-    if (statusFilter !== 'all') {
-      filtered = filtered.filter(order => order.status === statusFilter);
-    }
-
-    // Filter by date
+    // Filter by date (client-side only)
     if (dateFilter !== 'all') {
       filtered = filtered.filter(order => {
         const orderDate = new Date(order.date.split('/').reverse().join('-')); // Convert DD/MM/YYYY to YYYY-MM-DD
@@ -274,15 +293,8 @@ export default function OrdersScreen() {
       });
     }
 
-    // Filter by search query using debounced value
-    if (debouncedSearchQuery.trim()) {
-      filtered = filtered.filter(order =>
-        order.counterName.toLowerCase().includes(debouncedSearchQuery.toLowerCase())
-      );
-    }
-
     return filtered;
-  }, [orders, bitsFilter, statusFilter, dateFilter, debouncedSearchQuery, dateFilterFunctions]);
+  }, [orders, dateFilter, dateFilterFunctions]);
 
   // Handle incoming filter parameters and refresh data when they change
   useEffect(() => {

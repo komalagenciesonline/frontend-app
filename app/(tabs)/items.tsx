@@ -109,6 +109,8 @@ export default function ItemsScreen() {
 
   // Refs for cleanup
   const debounceTimeoutRef = useRef<number | null>(null);
+  const lastFetchTimeRef = useRef<number | null>(null);
+  const loadDataRef = useRef<(() => Promise<void>) | null>(null);
 
   // Debounce search query to reduce re-renders
   useEffect(() => {
@@ -136,13 +138,16 @@ export default function ItemsScreen() {
     };
   }, []);
 
-  // Load products and brand options with client-side filtering
+  // Load products and brand options with server-side filtering (no staleness check here)
   const loadData = useCallback(async () => {
     try {
       setIsLoading(true);
       const [productsData, brandNames] = await Promise.all([
-        // Load all products and filter client-side for better search performance
-        api.products.getAll(selectedBrand === 'all' ? undefined : selectedBrand),
+        // Use server-side filtering for brand and search
+        api.products.getAll(
+          selectedBrand === 'all' ? undefined : selectedBrand,
+          debouncedSearchQuery.trim() || undefined
+        ),
         api.products.getUniqueBrandNames()
       ]);
       
@@ -154,45 +159,45 @@ export default function ItemsScreen() {
         ...brandNames.map(name => ({ label: name, value: name }))
       ];
       setBrandOptions(options);
+      lastFetchTimeRef.current = Date.now(); // Mark data as fresh
     } catch (error) {
       console.error('Error loading data:', error);
       Alert.alert('Error', 'Failed to load products. Please try again.');
     } finally {
       setIsLoading(false);
     }
-  }, [selectedBrand]);
+  }, [selectedBrand, debouncedSearchQuery]);
 
-  // Client-side filtering with debounced search
-  const filteredProducts = useMemo(() => {
-    let filtered = products;
-
-    // Filter by brand
-    if (selectedBrand !== 'all') {
-      filtered = filtered.filter(product => product.brandName === selectedBrand);
-    }
-
-    // Filter by search query using debounced value
-    if (debouncedSearchQuery.trim()) {
-      filtered = filtered.filter(product =>
-        product.name.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
-        product.brandName.toLowerCase().includes(debouncedSearchQuery.toLowerCase())
-      );
-    }
-
-    return filtered;
-  }, [products, selectedBrand, debouncedSearchQuery]);
-
-  // Load data on component mount
+  // Store latest loadData in ref
   useEffect(() => {
-    loadData();
+    loadDataRef.current = loadData;
   }, [loadData]);
 
-  // Reload data when screen comes into focus
+  // No client-side filtering needed - server handles it
+  const filteredProducts = products;
+
+  // Load data when screen comes into focus (only if data is stale)
   useFocusEffect(
     useCallback(() => {
-      loadData();
-    }, [loadData])
+      const now = Date.now();
+      const lastFetch = lastFetchTimeRef.current;
+      
+      // Only skip if data is fresh (less than 30 seconds old)
+      if (lastFetch !== null && (now - lastFetch) < 30000) {
+        return; // Data is still fresh, skip refetch
+      }
+      
+      // Data is stale or first load, fetch fresh data using ref to avoid dependency issues
+      if (loadDataRef.current) {
+        loadDataRef.current();
+      }
+    }, []) // Empty deps - use ref to access latest loadData
   );
+
+  // Reload when filters change (always reload - filters changed)
+  useEffect(() => {
+    loadData(); // Always reload when filters change
+  }, [selectedBrand, debouncedSearchQuery]);
 
   // Memoized callback functions to prevent unnecessary re-renders
   const handleSearchChange = useCallback((query: string) => {

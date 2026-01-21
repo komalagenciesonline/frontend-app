@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState, useRef } from 'react';
 import { Alert, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { api, Brand } from '../utils/api';
@@ -13,12 +13,16 @@ export default function BrandsScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [isCleaningUp, setIsCleaningUp] = useState(false);
 
-  // Load brands
+  // Track last fetch time to avoid unnecessary refetches
+  const lastFetchTimeRef = useRef<number | null>(null);
+
+  // Load brands (no staleness check here)
   const loadBrands = useCallback(async () => {
     try {
       setIsLoading(true);
       const brandsData = await api.brands.getAll();
       setBrands(brandsData);
+      lastFetchTimeRef.current = Date.now(); // Mark data as fresh
     } catch (error) {
       console.error('Error loading brands:', error);
       Alert.alert('Error', 'Failed to load brands. Please try again.');
@@ -27,16 +31,28 @@ export default function BrandsScreen() {
     }
   }, []);
 
-  // Load brands on component mount
+  // Store latest loadBrands in ref (though it doesn't change, for consistency)
+  const loadBrandsRef = useRef<(() => Promise<void>) | null>(null);
   useEffect(() => {
-    loadBrands();
+    loadBrandsRef.current = loadBrands;
   }, [loadBrands]);
 
-  // Reload brands when screen comes into focus
+  // Load brands when screen comes into focus (only if data is stale)
   useFocusEffect(
     useCallback(() => {
-      loadBrands();
-    }, [loadBrands])
+      const now = Date.now();
+      const lastFetch = lastFetchTimeRef.current;
+      
+      // Only skip if data is fresh (less than 30 seconds old)
+      if (lastFetch !== null && (now - lastFetch) < 30000) {
+        return; // Data is still fresh, skip refetch
+      }
+      
+      // Data is stale or first load, fetch fresh data using ref to avoid dependency issues
+      if (loadBrandsRef.current) {
+        loadBrandsRef.current();
+      }
+    }, []) // Empty deps - use ref to access latest loadBrands
   );
 
   // Handle brand cleanup

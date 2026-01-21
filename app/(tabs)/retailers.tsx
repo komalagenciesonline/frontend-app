@@ -118,6 +118,7 @@ export default function RetailersScreen() {
 
   // Refs for cleanup
   const debounceTimeoutRef = useRef<number | null>(null);
+  const lastFetchTimeRef = useRef<number | null>(null);
 
   // Debounce search query to reduce re-renders
   useEffect(() => {
@@ -158,49 +159,56 @@ export default function RetailersScreen() {
     { label: 'Omerga', value: 'Omerga' },
   ], []);
 
-  // Load retailers data with client-side filtering
+  // Load retailers data with server-side filtering (no staleness check here)
   const loadRetailers = useCallback(async () => {
     try {
       setIsLoading(true);
-      // Load all retailers and filter client-side for better search performance
+      // Use server-side filtering for bit and search
       const retailersData = await api.retailers.getAll(
-        bitsFilter === 'all' ? undefined : bitsFilter
+        bitsFilter === 'all' ? undefined : bitsFilter,
+        debouncedSearchQuery.trim() || undefined
       );
       setRetailers(retailersData);
+      lastFetchTimeRef.current = Date.now(); // Mark data as fresh
     } catch (error) {
       console.error('Error loading retailers:', error);
       Alert.alert('Error', 'Failed to load retailers. Please try again.');
     } finally {
       setIsLoading(false);
     }
-  }, [bitsFilter]);
+  }, [bitsFilter, debouncedSearchQuery]);
 
-  // Client-side filtering with debounced search
-  const filteredRetailers = useMemo(() => {
-    let filtered = retailers;
+  // Store latest loadRetailers in ref
+  const loadRetailersRef = useRef<(() => Promise<void>) | null>(null);
+  useEffect(() => {
+    loadRetailersRef.current = loadRetailers;
+  }, [loadRetailers]);
 
-    // Filter by bits
-    if (bitsFilter !== 'all') {
-      filtered = filtered.filter(retailer => retailer.bit === bitsFilter);
-    }
+  // No client-side filtering needed - server handles it
+  const filteredRetailers = retailers;
 
-    // Filter by search query using debounced value
-    if (debouncedSearchQuery.trim()) {
-      filtered = filtered.filter(retailer =>
-        retailer.name.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
-        retailer.phone.toLowerCase().includes(debouncedSearchQuery.toLowerCase())
-      );
-    }
-
-    return filtered;
-  }, [retailers, bitsFilter, debouncedSearchQuery]);
-
-  // Load retailers on component mount and when screen comes into focus
+  // Load retailers when screen comes into focus (only if data is stale)
   useFocusEffect(
     useCallback(() => {
-      loadRetailers();
-    }, [loadRetailers])
+      const now = Date.now();
+      const lastFetch = lastFetchTimeRef.current;
+      
+      // Only skip if data is fresh (less than 30 seconds old)
+      if (lastFetch !== null && (now - lastFetch) < 30000) {
+        return; // Data is still fresh, skip refetch
+      }
+      
+      // Data is stale or first load, fetch fresh data using ref to avoid dependency issues
+      if (loadRetailersRef.current) {
+        loadRetailersRef.current();
+      }
+    }, []) // Empty deps - use ref to access latest loadRetailers
   );
+
+  // Reload when filters change (always reload - filters changed)
+  useEffect(() => {
+    loadRetailers(); // Always reload when filters change
+  }, [bitsFilter, debouncedSearchQuery]);
 
   // Memoized callback functions to prevent unnecessary re-renders
   const handleSearchChange = useCallback((query: string) => {

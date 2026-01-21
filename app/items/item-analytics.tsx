@@ -147,15 +147,17 @@ export default function ItemAnalyticsScreen() {
     }
   }, [selectedBrand, selectedBit]);
 
-  useEffect(() => {
-    loadPendingItems();
-  }, [loadPendingItems]);
-
+  // Reload when screen comes into focus (handles both initial mount and refocus)
   useFocusEffect(
     useCallback(() => {
       loadPendingItems();
     }, [loadPendingItems])
   );
+
+  // Reload when filters change (when screen is already focused)
+  useEffect(() => {
+    loadPendingItems();
+  }, [selectedBrand, selectedBit]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);

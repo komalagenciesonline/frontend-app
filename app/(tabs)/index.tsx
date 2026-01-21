@@ -1,10 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useState, useRef } from 'react';
 import { ActivityIndicator, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { api, Order } from '../../utils/api';
+
+const STALE_TIME_MS = 30000; // 30 seconds - data is considered stale after this time
 
 export default function DashboardScreen() {
   const insets = useSafeAreaInsets();
@@ -13,6 +15,9 @@ export default function DashboardScreen() {
   // State for orders data
   const [orders, setOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  
+  // Track last fetch time to avoid unnecessary refetches
+  const lastFetchTimeRef = useRef<number | null>(null);
 
   // Bits options (same as retailers.tsx)
   const bits = [
@@ -26,32 +31,27 @@ export default function DashboardScreen() {
     'Omerga',
   ];
 
-  // Load orders on component mount
-  useEffect(() => {
-    const loadOrders = async () => {
-      try {
-        setIsLoading(true);
-        const ordersData = await api.orders.getAll();
-        setOrders(ordersData);
-      } catch (error) {
-        console.error('Error loading orders:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadOrders();
-  }, []);
-
-  // Reload orders when screen comes into focus
+  // Load orders when screen comes into focus (only if data is stale or first load)
   useFocusEffect(
     useCallback(() => {
       const loadOrders = async () => {
+        const now = Date.now();
+        const lastFetch = lastFetchTimeRef.current;
+        
+        // Only refetch if this is the first load OR data is stale (older than 30 seconds)
+        if (lastFetch !== null && (now - lastFetch) < STALE_TIME_MS) {
+          return; // Data is still fresh, skip refetch
+        }
+
         try {
+          setIsLoading(true);
           const ordersData = await api.orders.getAll();
           setOrders(ordersData);
+          lastFetchTimeRef.current = now; // Mark data as fresh
         } catch (error) {
           console.error('Error loading orders:', error);
+        } finally {
+          setIsLoading(false);
         }
       };
 
