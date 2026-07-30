@@ -1,10 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { Alert, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, Platform, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import DropDownPicker from 'react-native-dropdown-picker';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { api } from '../../utils/api';
+import { api } from '../../../utils/api';
+import { markListDirty } from '../../../utils/listRefresh';
 
 export default function NewRetailerScreen() {
   const router = useRouter();
@@ -68,7 +69,7 @@ export default function NewRetailerScreen() {
           {
             text: 'OK',
             onPress: () => {
-              // Navigate back to retailers screen
+              markListDirty('retailers');
               router.back();
             }
           }
@@ -98,7 +99,13 @@ export default function NewRetailerScreen() {
         <View style={styles.placeholder} />
       </View>
 
-      <ScrollView style={styles.contentContainer} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.contentContainer}
+        showsVerticalScrollIndicator={false}
+        nestedScrollEnabled
+        keyboardShouldPersistTaps="handled"
+        scrollEnabled={!open}
+      >
         {/* Form */}
         <View style={styles.formContainer}>
           {/* Retailer Name */}
@@ -151,7 +158,9 @@ export default function NewRetailerScreen() {
                  showTickIcon={true}
                  showArrowIcon={true}
                  searchable={false}
-                 listMode="SCROLLVIEW"
+                 listMode={Platform.OS === 'android' ? 'MODAL' : 'SCROLLVIEW'}
+                 modalTitle="Select a bit"
+                 modalAnimationType="slide"
                  maxHeight={300}
                  scrollViewProps={{
                    nestedScrollEnabled: true,

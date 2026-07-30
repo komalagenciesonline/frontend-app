@@ -4,7 +4,8 @@ import { useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useState, useRef } from 'react';
 import { Alert, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { api, Brand } from '../utils/api';
+import { api, Brand } from '../../../utils/api';
+import { markListDirty } from '../../../utils/listRefresh';
 
 export default function BrandsScreen() {
   const router = useRouter();
@@ -71,6 +72,7 @@ export default function BrandsScreen() {
             try {
               setIsCleaningUp(true);
               await api.brands.cleanup();
+              markListDirty('items');
               // Reload brands to reflect changes
               await loadBrands();
               Alert.alert('Success', 'Brand cleanup completed successfully');

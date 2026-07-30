@@ -1,10 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { Alert, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, Platform, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import DropDownPicker from 'react-native-dropdown-picker';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { api, Brand, Product } from '../../utils/api';
+import { api, Brand, Product } from '../../../utils/api';
+import { markListDirty } from '../../../utils/listRefresh';
 
 export default function EditItemScreen() {
   const router = useRouter();
@@ -94,7 +95,7 @@ export default function EditItemScreen() {
           {
             text: 'OK',
             onPress: () => {
-              // Navigate back to items screen
+              markListDirty('items');
               router.back();
             }
           }
@@ -124,7 +125,13 @@ export default function EditItemScreen() {
         <View style={styles.placeholder} />
       </View>
 
-      <ScrollView style={styles.contentContainer} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.contentContainer}
+        showsVerticalScrollIndicator={false}
+        nestedScrollEnabled
+        keyboardShouldPersistTaps="handled"
+        scrollEnabled={!open}
+      >
         {/* Form */}
         <View style={styles.formContainer}>
           {/* Brand Selection */}
@@ -150,7 +157,9 @@ export default function EditItemScreen() {
                  showTickIcon={true}
                  showArrowIcon={true}
                  searchable={false}
-                 listMode="SCROLLVIEW"
+                 listMode={Platform.OS === 'android' ? 'MODAL' : 'SCROLLVIEW'}
+                 modalTitle="Select a brand"
+                 modalAnimationType="slide"
                  maxHeight={300}
                  scrollViewProps={{
                    nestedScrollEnabled: true,

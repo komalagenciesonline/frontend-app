@@ -5,9 +5,12 @@ import React, { useCallback, useEffect, useState, useRef, useMemo } from 'react'
 import { ActivityIndicator, Alert, Dimensions, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
 import Modal from 'react-native-modal';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { api, Product } from '../../utils/api';
+import { api, Product } from '../../../utils/api';
+import { consumeListDirty } from '../../../utils/listRefresh';
 
 const { height: screenHeight, width: screenWidth } = Dimensions.get('screen');
+const PAGE_SIZE = 10;
+const STALE_TIME_MS = 30000;
 
 // Memoized ProductCard component to prevent unnecessary re-renders
 const ProductCard = React.memo(({ 
@@ -62,17 +65,16 @@ const SearchBar = React.memo(({
   return (
     <View style={styles.searchContainer}>
       <View style={styles.searchBar}>
-        <Ionicons name="search-outline" size={20} color="#666" />
+        <Ionicons name="search-outline" size={18} color="#8E8E93" />
         <TextInput
           ref={searchInputRef}
           style={styles.searchInput}
           placeholder="Search products..."
-          placeholderTextColor="#999"
+          placeholderTextColor="#AEAEB2"
           value={searchQuery}
           onChangeText={onSearchChange}
           returnKeyType="search"
           clearButtonMode="while-editing"
-          // Critical props to prevent keyboard dismissal
           blurOnSubmit={false}
           autoCorrect={false}
           autoCapitalize="none"
@@ -83,7 +85,7 @@ const SearchBar = React.memo(({
           style={styles.filterButton}
           onPress={onFilterPress}
         >
-          <Ionicons name="filter-outline" size={20} color="#666" />
+          <Ionicons name="options-outline" size={18} color="#007AFF" />
         </TouchableOpacity>
       </View>
     </View>
@@ -97,8 +99,11 @@ export default function ItemsScreen() {
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
   const [selectedBrand, setSelectedBrand] = useState('all');
   const [products, setProducts] = useState<Product[]>([]);
+  const [total, setTotal] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
   const [brandOptions, setBrandOptions] = useState<{label: string, value: string}[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [isCleaningUp, setIsCleaningUp] = useState(false);
   
   // Temporary filter state for modal (not applied until Apply is clicked)
@@ -107,10 +112,9 @@ export default function ItemsScreen() {
   // Modal visibility state
   const [isModalVisible, setModalVisible] = useState(false);
 
-  // Refs for cleanup
   const debounceTimeoutRef = useRef<number | null>(null);
   const lastFetchTimeRef = useRef<number | null>(null);
-  const loadDataRef = useRef<(() => Promise<void>) | null>(null);
+  const isFetchingRef = useRef(false);
 
   // Debounce search query to reduce re-renders
   useEffect(() => {
@@ -129,75 +133,83 @@ export default function ItemsScreen() {
     };
   }, [searchQuery]);
 
-  // Cleanup timeout on unmount
-  useEffect(() => {
-    return () => {
-      if (debounceTimeoutRef.current) {
-        clearTimeout(debounceTimeoutRef.current);
-      }
-    };
+  const loadBrandOptions = useCallback(async () => {
+    try {
+      const brandNames = await api.products.getUniqueBrandNames();
+      setBrandOptions([
+        { label: 'All Brands', value: 'all' },
+        ...brandNames.map((name) => ({ label: name, value: name })),
+      ]);
+    } catch (error) {
+      console.error('Error loading brand options:', error);
+    }
   }, []);
 
-  // Load products and brand options with server-side filtering (no staleness check here)
-  const loadData = useCallback(async () => {
+  useEffect(() => {
+    loadBrandOptions();
+  }, [loadBrandOptions]);
+
+  const fetchProducts = useCallback(async (reset: boolean) => {
+    if (isFetchingRef.current) return;
+    if (!reset && (!hasMore || isLoadingMore)) return;
+
+    isFetchingRef.current = true;
+
     try {
-      setIsLoading(true);
-      const [productsData, brandNames] = await Promise.all([
-        // Use server-side filtering for brand and search
-        api.products.getAll(
-          selectedBrand === 'all' ? undefined : selectedBrand,
-          debouncedSearchQuery.trim() || undefined
-        ),
-        api.products.getUniqueBrandNames()
-      ]);
-      
-      setProducts(productsData);
-      
-      // Create brand options for dropdown
-      const options = [
-        { label: 'All Brands', value: 'all' },
-        ...brandNames.map(name => ({ label: name, value: name }))
-      ];
-      setBrandOptions(options);
-      lastFetchTimeRef.current = Date.now(); // Mark data as fresh
+      if (reset) {
+        setIsLoading(true);
+      } else {
+        setIsLoadingMore(true);
+      }
+
+      const response = await api.products.getPage({
+        brand: selectedBrand === 'all' ? undefined : selectedBrand,
+        search: debouncedSearchQuery.trim() || undefined,
+        limit: PAGE_SIZE,
+        skip: reset ? 0 : products.length,
+      });
+
+      setProducts((prev) => (reset ? response.data : [...prev, ...response.data]));
+      setTotal(response.total);
+      setHasMore(response.hasMore);
+      lastFetchTimeRef.current = Date.now();
     } catch (error) {
-      console.error('Error loading data:', error);
+      console.error('Error loading products:', error);
       Alert.alert('Error', 'Failed to load products. Please try again.');
     } finally {
       setIsLoading(false);
+      setIsLoadingMore(false);
+      isFetchingRef.current = false;
     }
+  }, [selectedBrand, debouncedSearchQuery, hasMore, isLoadingMore, products.length]);
+
+  useEffect(() => {
+    fetchProducts(true);
   }, [selectedBrand, debouncedSearchQuery]);
 
-  // Store latest loadData in ref
-  useEffect(() => {
-    loadDataRef.current = loadData;
-  }, [loadData]);
-
-  // No client-side filtering needed - server handles it
-  const filteredProducts = products;
-
-  // Load data when screen comes into focus (only if data is stale)
   useFocusEffect(
     useCallback(() => {
+      if (consumeListDirty('items')) {
+        fetchProducts(true);
+        return;
+      }
+
       const now = Date.now();
       const lastFetch = lastFetchTimeRef.current;
-      
-      // Only skip if data is fresh (less than 30 seconds old)
-      if (lastFetch !== null && (now - lastFetch) < 30000) {
-        return; // Data is still fresh, skip refetch
+
+      if (lastFetch !== null && (now - lastFetch) < STALE_TIME_MS) {
+        return;
       }
-      
-      // Data is stale or first load, fetch fresh data using ref to avoid dependency issues
-      if (loadDataRef.current) {
-        loadDataRef.current();
-      }
-    }, []) // Empty deps - use ref to access latest loadData
+
+      fetchProducts(true);
+    }, [fetchProducts])
   );
 
-  // Reload when filters change (always reload - filters changed)
-  useEffect(() => {
-    loadData(); // Always reload when filters change
-  }, [selectedBrand, debouncedSearchQuery]);
+  const handleLoadMore = useCallback(() => {
+    if (!isLoading && !isLoadingMore && hasMore) {
+      fetchProducts(false);
+    }
+  }, [fetchProducts, isLoading, isLoadingMore, hasMore]);
 
   // Memoized callback functions to prevent unnecessary re-renders
   const handleSearchChange = useCallback((query: string) => {
@@ -206,7 +218,7 @@ export default function ItemsScreen() {
 
   const handleEditProduct = useCallback((product: Product) => {
     router.push({
-      pathname: '/items/edit-item',
+      pathname: '/(tabs)/items/edit-item',
       params: {
         productData: JSON.stringify(product)
       }
@@ -230,8 +242,7 @@ export default function ItemsScreen() {
           onPress: async () => {
             try {
               await api.products.delete(product._id);
-              // Reload products after deletion
-              await loadData();
+              await fetchProducts(true);
               Alert.alert(
                 'Success', 
                 'Product deleted successfully. If this was the last product for its brand, the brand has been automatically removed.',
@@ -245,7 +256,7 @@ export default function ItemsScreen() {
         },
       ]
     );
-  }, [loadData]);
+  }, [fetchProducts]);
 
   // Handle brand cleanup
   const handleBrandCleanup = useCallback(async () => {
@@ -263,8 +274,7 @@ export default function ItemsScreen() {
             try {
               setIsCleaningUp(true);
               await api.brands.cleanup();
-              // Reload data to reflect changes
-              await loadData();
+              await Promise.all([loadBrandOptions(), fetchProducts(true)]);
               Alert.alert('Success', 'Brand cleanup completed successfully');
             } catch (error) {
               console.error('Error during brand cleanup:', error);
@@ -276,7 +286,7 @@ export default function ItemsScreen() {
         },
       ]
     );
-  }, [loadData]);
+  }, [fetchProducts]);
 
   // Handle opening filter modal - copy current filter to temp state
   const handleOpenFilterModal = useCallback(() => {
@@ -296,16 +306,16 @@ export default function ItemsScreen() {
   }, []);
 
   const handleNavigateToBrands = useCallback(() => {
-    router.push('/brands');
+    router.push('/(tabs)/items/brands');
   }, [router]);
 
   const handleAddProduct = useCallback(() => {
-    router.push('/items/new-item');
+    router.push('/(tabs)/items/new-item');
   }, [router]);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
+      <StatusBar barStyle="dark-content" backgroundColor="#F2F4F7" />
       
       {/* Search Bar */}
       <SearchBar 
@@ -314,11 +324,20 @@ export default function ItemsScreen() {
         onFilterPress={handleOpenFilterModal}
       />
 
-      {/* Products List */}
-      <ScrollView style={styles.productsContainer} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.productsContainer}
+        showsVerticalScrollIndicator={false}
+        onScroll={({ nativeEvent }) => {
+          const { layoutMeasurement, contentOffset, contentSize } = nativeEvent;
+          if (layoutMeasurement.height + contentOffset.y >= contentSize.height - 48) {
+            handleLoadMore();
+          }
+        }}
+        scrollEventThrottle={400}
+      >
         <View style={styles.productsHeader}>
           <Text style={styles.productsTitle}>
-            Products ({filteredProducts.length})
+            Products ({total})
           </Text>
           <View style={styles.headerButtons}>
             <TouchableOpacity 
@@ -330,7 +349,7 @@ export default function ItemsScreen() {
             </TouchableOpacity>
             <TouchableOpacity 
               style={styles.analyticsButton}
-              onPress={() => router.push('/items/item-analytics')}
+              onPress={() => router.push('/(tabs)/items/item-analytics')}
             >
               <Ionicons name="analytics-outline" size={20} color="#34C759" />
             </TouchableOpacity>
@@ -355,8 +374,8 @@ export default function ItemsScreen() {
               <ActivityIndicator size="large" color="#007AFF" />
               <Text style={styles.loadingText}>Loading products...</Text>
             </View>
-          ) : filteredProducts.length > 0 ? (
-            filteredProducts.map((product) => (
+          ) : products.length > 0 ? (
+            products.map((product) => (
               <ProductCard 
                 key={product._id} 
                 product={product}
@@ -378,6 +397,11 @@ export default function ItemsScreen() {
                     : 'Add some products to get started'
                 }
               </Text>
+            </View>
+          )}
+          {isLoadingMore && (
+            <View style={styles.loadingState}>
+              <ActivityIndicator size="small" color="#007AFF" />
             </View>
           )}
         </View>
@@ -408,7 +432,7 @@ export default function ItemsScreen() {
               onPress={() => setModalVisible(false)}
               style={styles.closeButton}
             >
-              <Ionicons name="close" size={24} color="#666" />
+              <Ionicons name="close" size={20} color="#636366" />
             </TouchableOpacity>
           </View>
           
@@ -460,29 +484,42 @@ export default function ItemsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#F2F4F7',
   },
   searchContainer: {
     paddingHorizontal: 20,
-    paddingVertical: 15,
-    backgroundColor: '#ffffff',
+    paddingTop: 12,
+    paddingBottom: 8,
+    backgroundColor: '#F2F4F7',
   },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f5f5f5',
-    borderRadius: 25,
-    paddingHorizontal: 15,
-    paddingVertical: 12,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+    borderWidth: 1,
+    borderColor: '#E8ECF0',
+    shadowColor: '#0A1628',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
   },
   searchInput: {
     flex: 1,
-    fontSize: 16,
-    color: '#333',
+    fontSize: 15,
+    color: '#1A1A1A',
     marginLeft: 10,
   },
   filterButton: {
-    padding: 5,
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: '#E8F4FF',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   productsContainer: {
     flex: 1,
@@ -631,13 +668,13 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    backgroundColor: 'rgba(10, 22, 40, 0.55)',
     zIndex: 0,
   },
   modalContent: {
-    backgroundColor: '#ffffff',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
     maxHeight: '80%',
     minHeight: '50%',
     zIndex: 1,
@@ -647,18 +684,23 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 15,
+    paddingVertical: 18,
     paddingHorizontal: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#e5e5ea',
+    borderBottomColor: '#F2F4F7',
   },
   modalTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
+    fontWeight: '700',
+    color: '#0A1628',
   },
   closeButton: {
-    padding: 5,
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: '#F2F4F7',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   modalBody: {
     maxHeight: 400,
@@ -666,13 +708,15 @@ const styles = StyleSheet.create({
     paddingTop: 20,
   },
   filterSection: {
-    marginBottom: 20,
+    marginBottom: 22,
   },
   filterSectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333333',
-    marginBottom: 10,
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#8E8E93',
+    marginBottom: 12,
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
   },
   filterOptions: {
     flexDirection: 'row',
@@ -680,61 +724,59 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   filterOption: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#e5e5ea',
-    backgroundColor: '#ffffff',
+    borderColor: '#E8ECF0',
+    backgroundColor: '#F2F4F7',
   },
   filterOptionSelected: {
-    backgroundColor: '#007AFF',
-    borderColor: '#007AFF',
+    backgroundColor: '#0A1628',
+    borderColor: '#0A1628',
   },
   filterOptionText: {
     fontSize: 14,
-    color: '#666666',
-    fontWeight: '500',
+    color: '#636366',
+    fontWeight: '600',
   },
   filterOptionTextSelected: {
-    color: '#ffffff',
-    fontWeight: '600',
+    color: '#FFFFFF',
   },
   filterActions: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 20,
+    marginTop: 8,
     paddingHorizontal: 20,
     paddingBottom: 20,
+    gap: 12,
   },
   clearButton: {
     flex: 1,
-    paddingVertical: 12,
+    paddingVertical: 14,
     paddingHorizontal: 20,
-    borderRadius: 8,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#e5e5ea',
-    backgroundColor: '#ffffff',
-    marginRight: 10,
+    borderColor: '#E8ECF0',
+    backgroundColor: '#FFFFFF',
   },
   clearButtonText: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
-    color: '#666666',
+    color: '#636366',
     textAlign: 'center',
   },
   applyButton: {
     flex: 1,
-    paddingVertical: 12,
+    paddingVertical: 14,
     paddingHorizontal: 20,
-    borderRadius: 8,
+    borderRadius: 12,
     backgroundColor: '#007AFF',
-    marginLeft: 10,
   },
   applyButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#ffffff',
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#FFFFFF',
     textAlign: 'center',
   },
 });

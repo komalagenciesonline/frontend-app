@@ -3,74 +3,58 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import React, { useCallback, useState, useRef } from 'react';
 import { ActivityIndicator, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { api, Order } from '../../utils/api';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { api, DashboardStats, Order } from '../../utils/api';
 
-const STALE_TIME_MS = 30000; // 30 seconds - data is considered stale after this time
+const STALE_TIME_MS = 30000;
+
+const EMPTY_STATS: DashboardStats = {
+  totalOrders: 0,
+  totalItems: 0,
+  pendingOrders: 0,
+  totalBits: 8,
+};
 
 export default function DashboardScreen() {
-  const insets = useSafeAreaInsets();
   const router = useRouter();
-  
-  // State for orders data
-  const [orders, setOrders] = useState<Order[]>([]);
+
+  const [recentOrders, setRecentOrders] = useState<Order[]>([]);
+  const [stats, setStats] = useState<DashboardStats>(EMPTY_STATS);
   const [isLoading, setIsLoading] = useState(true);
-  
-  // Track last fetch time to avoid unnecessary refetches
+
   const lastFetchTimeRef = useRef<number | null>(null);
 
-  // Bits options (same as retailers.tsx)
-  const bits = [
-    'Turori',
-    'Naldurg & Jalkot',
-    'Gunjoti & Murum',
-    'Dalimb & Yenegur',
-    'Sastur & Makhani',
-    'Narangwadi & Killari',
-    'Andur',
-    'Omerga',
-  ];
-
-  // Load orders when screen comes into focus (only if data is stale or first load)
   useFocusEffect(
     useCallback(() => {
-      const loadOrders = async () => {
+      const loadDashboard = async () => {
         const now = Date.now();
         const lastFetch = lastFetchTimeRef.current;
-        
-        // Only refetch if this is the first load OR data is stale (older than 30 seconds)
+
         if (lastFetch !== null && (now - lastFetch) < STALE_TIME_MS) {
-          return; // Data is still fresh, skip refetch
+          return;
         }
 
         try {
           setIsLoading(true);
-          const ordersData = await api.orders.getAll();
-          setOrders(ordersData);
-          lastFetchTimeRef.current = now; // Mark data as fresh
+          const [statsData, recentData] = await Promise.all([
+            api.orders.getDashboardStats(),
+            api.orders.getRecent(3),
+          ]);
+          setStats(statsData);
+          setRecentOrders(recentData);
+          lastFetchTimeRef.current = now;
         } catch (error) {
-          console.error('Error loading orders:', error);
+          console.error('Error loading dashboard:', error);
         } finally {
           setIsLoading(false);
         }
       };
 
-      loadOrders();
+      loadDashboard();
     }, [])
   );
 
-  // Calculate stats from real data
-  const stats = {
-    totalOrders: orders.length,
-    completedOrders: orders.filter(order => order.status === 'Completed').length,
-    pendingOrders: orders.filter(order => order.status === 'Pending').length,
-    totalBits: bits.length, // Use hardcoded bits count (same as retailers.tsx)
-  };
-
-  // Get recent orders (last 3)
-  const recentOrders = orders
-    .sort((a, b) => new Date(`${b.date} ${b.time}`).getTime() - new Date(`${a.date} ${a.time}`).getTime())
-    .slice(0, 3);
+  const completedOrders = stats.totalOrders - stats.pendingOrders;
 
   const StatCard = ({ title, value, icon, color }: { title: string; value: number; icon: string; color: string }) => (
     <View style={[styles.statCard, { borderLeftColor: color }]}>
@@ -113,68 +97,65 @@ export default function DashboardScreen() {
       <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
       
       <ScrollView style={styles.scrollContainer}>
-        {/* Header */}
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Dashboard</Text>
           <Text style={styles.headerSubtitle}>Welcome to Komal Agencies</Text>
         </View>
 
-      {/* Stats Cards */}
-      <View style={styles.statsContainer}>
-        <StatCard
-          title="Total Orders"
-          value={stats.totalOrders}
-          icon="receipt-outline"
-          color="#007AFF"
-        />
-        <StatCard
-          title="Completed Orders"
-          value={stats.completedOrders}
-          icon="checkmark-circle-outline"
-          color="#34C759"
-        />
-        <StatCard
-          title="Pending Orders"
-          value={stats.pendingOrders}
-          icon="time-outline"
-          color="#FF9500"
-        />
-        <StatCard
-          title="Total Bits"
-          value={stats.totalBits}
-          icon="location-outline"
-          color="#AF52DE"
-        />
-      </View>
+        <View style={styles.statsContainer}>
+          <StatCard
+            title="Total Orders"
+            value={stats.totalOrders}
+            icon="receipt-outline"
+            color="#007AFF"
+          />
+          <StatCard
+            title="Completed Orders"
+            value={completedOrders}
+            icon="checkmark-circle-outline"
+            color="#34C759"
+          />
+          <StatCard
+            title="Pending Orders"
+            value={stats.pendingOrders}
+            icon="time-outline"
+            color="#FF9500"
+          />
+          <StatCard
+            title="Total Bits"
+            value={stats.totalBits}
+            icon="location-outline"
+            color="#AF52DE"
+          />
+        </View>
 
-      {/* Recent Orders Section */}
-      <View style={styles.section}>
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Recent Orders</Text>
-          <TouchableOpacity onPress={() => router.push('/(tabs)/orders')}>
-            <Text style={styles.viewAllText}>View All</Text>
-          </TouchableOpacity>
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Recent Orders</Text>
+            <TouchableOpacity onPress={() => router.push('/(tabs)/orders')}>
+              <Text style={styles.viewAllText}>View All</Text>
+            </TouchableOpacity>
+          </View>
+          
+          <View style={styles.ordersList}>
+            {isLoading ? (
+              <View style={styles.loadingState}>
+                <ActivityIndicator size="large" color="#007AFF" />
+                <Text style={styles.loadingText}>Loading dashboard...</Text>
+              </View>
+            ) : recentOrders.length > 0 ? (
+              recentOrders.map((order) => (
+                <OrderCard key={order._id} order={order} />
+              ))
+            ) : (
+              <View style={styles.emptyState}>
+                <Ionicons name="receipt-outline" size={48} color="#ccc" />
+                <Text style={styles.emptyText}>No orders yet</Text>
+                <Text style={styles.emptySubtext}>Create your first order to see it here</Text>
+              </View>
+            )}
+          </View>
         </View>
-        
-        <View style={styles.ordersList}>
-          {isLoading ? (
-            <View style={styles.loadingState}>
-              <ActivityIndicator size="large" color="#007AFF" />
-              <Text style={styles.loadingText}>Loading orders...</Text>
-            </View>
-          ) : recentOrders.length > 0 ? (
-            recentOrders.map((order) => (
-              <OrderCard key={order._id} order={order} />
-            ))
-          ) : (
-            <View style={styles.emptyState}>
-              <Ionicons name="receipt-outline" size={48} color="#ccc" />
-              <Text style={styles.emptyText}>No orders yet</Text>
-              <Text style={styles.emptySubtext}>Create your first order to see it here</Text>
-            </View>
-          )}
-        </View>
-      </View>
       </ScrollView>
     </SafeAreaView>
   );

@@ -3,7 +3,8 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { Alert, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { api } from '../../utils/api';
+import { api } from '../../../utils/api';
+import { markListDirty } from '../../../utils/listRefresh';
 
 interface SelectedItem {
   productId: string;
@@ -63,8 +64,8 @@ export default function OrderSummaryScreen() {
           {
             text: 'OK',
             onPress: () => {
-              // Navigate back to orders screen
-              router.push('/(tabs)/orders');
+              markListDirty('orders');
+              router.navigate('/(tabs)/orders');
             }
           }
         ]
@@ -104,19 +105,7 @@ export default function OrderSummaryScreen() {
       <View style={styles.header}>
         <TouchableOpacity 
           style={styles.backButton}
-          onPress={() => {
-            // Navigate back to new-order screen with the current items preserved
-            router.push({
-              pathname: '/orders/new-order',
-              params: {
-                retailerName: retailerName || 'N/A',
-                retailerPhone: retailerPhone || 'N/A',
-                retailerBit: retailerBit || 'N/A',
-                orderItems: orderItems, // Pass back the items so they're preserved
-                orderDate: orderDate || new Date().toISOString()
-              }
-            });
-          }}
+          onPress={() => router.back()}
         >
           <Ionicons name="arrow-back" size={24} color="#007AFF" />
         </TouchableOpacity>
@@ -185,19 +174,7 @@ export default function OrderSummaryScreen() {
       <View style={styles.actionButtons}>
         <TouchableOpacity 
           style={styles.cancelButton}
-          onPress={() => {
-            // Navigate back to new-order screen with the current items preserved
-            router.push({
-              pathname: '/orders/new-order',
-              params: {
-                retailerName: retailerName || 'N/A',
-                retailerPhone: retailerPhone || 'N/A',
-                retailerBit: retailerBit || 'N/A',
-                orderItems: orderItems, // Pass back the items so they're preserved
-                orderDate: orderDate || new Date().toISOString()
-              }
-            });
-          }}
+          onPress={() => router.back()}
         >
           <Text style={styles.cancelButtonText}>Back to Order</Text>
         </TouchableOpacity>

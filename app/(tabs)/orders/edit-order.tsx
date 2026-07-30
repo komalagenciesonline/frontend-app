@@ -3,7 +3,8 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Image, Modal, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { api, Brand, Order, OrderItem, Product } from '../../utils/api';
+import { api, Brand, Order, OrderItem, Product } from '../../../utils/api';
+import { markListDirty } from '../../../utils/listRefresh';
 
 export default function EditOrderScreen() {
   const router = useRouter();
@@ -175,17 +176,8 @@ export default function EditOrderScreen() {
           {
             text: 'OK',
             onPress: () => {
-              // Navigate back to orders screen with refresh trigger and preserved filters
-              router.push({
-                pathname: '/(tabs)/orders',
-                params: { 
-                  refreshTrigger: 'status_changed',
-                  bitsFilter: bitsFilter || 'all',
-                  statusFilter: statusFilter || 'all',
-                  dateFilter: dateFilter || 'all',
-                  searchQuery: searchQuery || ''
-                }
-              });
+              markListDirty('orders');
+              router.back();
             }
           }
         ]
@@ -235,17 +227,8 @@ export default function EditOrderScreen() {
                   {
                     text: 'OK',
                     onPress: () => {
-                      // Navigate back to orders screen with refresh trigger and preserved filters
-                      router.push({
-                        pathname: '/(tabs)/orders',
-                        params: { 
-                          refreshTrigger: 'status_changed',
-                          bitsFilter: bitsFilter || 'all',
-                          statusFilter: statusFilter || 'all',
-                          dateFilter: dateFilter || 'all',
-                          searchQuery: searchQuery || ''
-                        }
-                      });
+                      markListDirty('orders');
+                      router.back();
                     }
                   }
                 ]
@@ -419,7 +402,7 @@ export default function EditOrderScreen() {
                 </View>
                 
                 {/* Notes Input */}
-                <View style={styles.notesSection}>
+                <View style={styles.orderItemNotesSection}>
                   <Text style={styles.notesLabel}>Notes (Optional)</Text>
                   <TextInput
                     style={styles.notesInput}
@@ -669,15 +652,7 @@ export default function EditOrderScreen() {
       <View style={styles.header}>
         <TouchableOpacity 
           style={styles.backButton}
-          onPress={() => router.push({
-            pathname: '/(tabs)/orders',
-            params: {
-              bitsFilter: bitsFilter || 'all',
-              statusFilter: statusFilter || 'all',
-              dateFilter: dateFilter || 'all',
-              searchQuery: searchQuery || ''
-            }
-          })}
+          onPress={() => router.back()}
         >
           <Ionicons name="arrow-back" size={24} color="#007AFF" />
         </TouchableOpacity>

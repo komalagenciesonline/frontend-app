@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Animated, Pressable, RefreshControl, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { api, Brand, PendingOrderItem, PendingOrderItemsResponse } from '../../utils/api';
+import { api, Brand, PendingOrderItem, PendingOrderItemsResponse } from '../../../utils/api';
 
 const ACCENT = "#3D5AFE";
 

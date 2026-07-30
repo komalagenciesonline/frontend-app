@@ -5,6 +5,7 @@ import { ActivityIndicator, StatusBar, StyleSheet, Text, TouchableOpacity, View 
 import { SafeAreaView } from 'react-native-safe-area-context';
 import DraggableFlatList, { RenderItemParams } from 'react-native-draggable-flatlist';
 import { api, Brand, Product } from '../../utils/api';
+import { markListDirty } from '../../utils/listRefresh';
 
 export default function ManageProductsScreen() {
   const router = useRouter();
@@ -47,6 +48,7 @@ export default function ManageProductsScreen() {
       }));
       
       await api.products.updateOrder(productOrders);
+      markListDirty('items');
     } catch (error) {
       console.error('Error updating product order:', error);
       // Optionally show a toast or alert to user

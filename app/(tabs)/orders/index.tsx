@@ -2,12 +2,15 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useState, useRef, useMemo } from 'react';
-import { ActivityIndicator, Alert, Dimensions, RefreshControl, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
+import { ActivityIndicator, Alert, Dimensions, FlatList, RefreshControl, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
 import Modal from 'react-native-modal';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { api, Order } from '../../utils/api';
+import { api, Order } from '../../../utils/api';
+import { consumeListDirty } from '../../../utils/listRefresh';
 
 const { height: screenHeight, width: screenWidth } = Dimensions.get('screen');
+const PAGE_SIZE = 10;
+const STALE_TIME_MS = 30000;
 
 // Memoized OrderCard component to prevent unnecessary re-renders
 const OrderCard = React.memo(({ 
@@ -23,16 +26,26 @@ const OrderCard = React.memo(({
 }) => (
   <TouchableOpacity 
     style={styles.orderCard}
+    activeOpacity={0.75}
     onPress={() => onPress(order)}
   >
     {/* First Row: Order Number and Status */}
     <View style={styles.orderHeader}>
       <Text style={styles.orderNumber}>{order.orderNumber}</Text>
-      <View style={[
-        styles.statusBadge,
-        { backgroundColor: order.status === 'Completed' ? '#4CAF50' : '#FF9800' }
-      ]}>
-        <Text style={styles.statusText}>{order.status}</Text>
+      <View
+        style={[
+          styles.statusBadge,
+          order.status === 'Completed' ? styles.statusCompleted : styles.statusPending,
+        ]}
+      >
+        <Text
+          style={[
+            styles.statusText,
+            order.status === 'Completed' ? styles.statusTextCompleted : styles.statusTextPending,
+          ]}
+        >
+          {order.status}
+        </Text>
       </View>
     </View>
     
@@ -43,9 +56,9 @@ const OrderCard = React.memo(({
     
     {/* Third Row: Bit Name and Action Buttons */}
     <View style={styles.bitAndActionsRow}>
-      <View style={styles.detailItem}>
-        <Ionicons name="location-outline" size={16} color="#666" />
-        <Text style={styles.detailText}>{order.bit}</Text>
+      <View style={styles.bitBadge}>
+        <Ionicons name="location-outline" size={14} color="#007AFF" />
+        <Text style={styles.bitText}>{order.bit}</Text>
       </View>
       <View style={styles.actionButtons}>
         <TouchableOpacity 
@@ -63,15 +76,11 @@ const OrderCard = React.memo(({
       </View>
     </View>
     
-    {/* Fourth Row: Total Items and Date */}
+    {/* Fourth Row: Date */}
     <View style={styles.itemsAndDateRow}>
-      <View style={styles.detailItem}>
-        <Ionicons name="cube-outline" size={16} color="#666" />
-        <Text style={styles.detailText}>{order.totalItems} items</Text>
-      </View>
-      <View style={styles.detailItem}>
-        <Ionicons name="calendar-outline" size={16} color="#666" />
-        <Text style={styles.detailText}>{order.date}</Text>
+      <View style={styles.metaChip}>
+        <Ionicons name="calendar-outline" size={14} color="#8E8E93" />
+        <Text style={styles.metaChipText}>{order.date}</Text>
       </View>
     </View>
   </TouchableOpacity>
@@ -92,17 +101,16 @@ const SearchBar = React.memo(({
   return (
     <View style={styles.searchContainer}>
       <View style={styles.searchBar}>
-        <Ionicons name="search-outline" size={20} color="#666" />
+        <Ionicons name="search-outline" size={18} color="#8E8E93" />
         <TextInput
           ref={searchInputRef}
           style={styles.searchInput}
           placeholder="Search orders by counter name..."
-          placeholderTextColor="#999"
+          placeholderTextColor="#AEAEB2"
           value={searchQuery}
           onChangeText={onSearchChange}
           returnKeyType="search"
           clearButtonMode="while-editing"
-          // Critical props to prevent keyboard dismissal
           blurOnSubmit={false}
           autoCorrect={false}
           autoCapitalize="none"
@@ -113,7 +121,7 @@ const SearchBar = React.memo(({
           style={styles.filterButton}
           onPress={onFilterPress}
         >
-          <Ionicons name="filter-outline" size={20} color="#666" />
+          <Ionicons name="options-outline" size={18} color="#007AFF" />
         </TouchableOpacity>
       </View>
     </View>
@@ -148,11 +156,14 @@ export default function OrdersScreen() {
   
   // Orders state
   const [orders, setOrders] = useState<Order[]>([]);
+  const [total, setTotal] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
 
-  // Refs for cleanup
   const debounceTimeoutRef = useRef<number | null>(null);
   const lastFetchTimeRef = useRef<number | null>(null);
+  const isFetchingRef = useRef(false);
 
   // Debounce search query to reduce re-renders
   useEffect(() => {
@@ -171,31 +182,6 @@ export default function OrdersScreen() {
     };
   }, [searchQuery]);
 
-  // Cleanup timeout on unmount
-  useEffect(() => {
-    return () => {
-      if (debounceTimeoutRef.current) {
-        clearTimeout(debounceTimeoutRef.current);
-      }
-    };
-  }, []);
-
-  // Memoize date filter functions to prevent recalculation
-  const dateFilterFunctions = useMemo(() => {
-    const today = new Date();
-    const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-    const startOfWeek = new Date(today);
-    startOfWeek.setDate(today.getDate() - today.getDay());
-    const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-    
-    return {
-      today: (orderDate: Date) => orderDate >= startOfToday,
-      week: (orderDate: Date) => orderDate >= startOfWeek,
-      month: (orderDate: Date) => orderDate >= startOfMonth,
-    };
-  }, []); // Empty dependency - calculate once
-
-  // Memoize filter options to prevent re-creation
   const filterOptions = useMemo(() => ({
     status: [
       { label: 'All Status', value: 'all' },
@@ -221,93 +207,63 @@ export default function OrdersScreen() {
     ]
   }), []);
 
-  // Load orders with server-side filtering (bit, status, search)
-  // Date filtering is handled client-side since server doesn't support it
-  const loadOrders = useCallback(async (customBitsFilter?: string, customStatusFilter?: string) => {
+  const fetchOrders = useCallback(async (reset: boolean) => {
+    if (isFetchingRef.current) return;
+    if (!reset && (!hasMore || isLoadingMore)) return;
+
+    isFetchingRef.current = true;
+
     try {
-      setIsLoading(true);
-      
-      const ordersData = await api.orders.getAll(
-        (customBitsFilter || bitsFilter) === 'all' ? undefined : (customBitsFilter || bitsFilter),
-        (customStatusFilter || statusFilter) === 'all' ? undefined : (customStatusFilter || statusFilter),
-        debouncedSearchQuery.trim() || undefined
-      );
-      setOrders(ordersData);
-      lastFetchTimeRef.current = Date.now(); // Mark data as fresh
+      if (reset) {
+        setIsLoading(true);
+      } else {
+        setIsLoadingMore(true);
+      }
+
+      const response = await api.orders.getPage({
+        bit: bitsFilter === 'all' ? undefined : bitsFilter,
+        status: statusFilter === 'all' ? undefined : statusFilter,
+        date: dateFilter === 'all' ? undefined : dateFilter,
+        search: debouncedSearchQuery.trim() || undefined,
+        limit: PAGE_SIZE,
+        skip: reset ? 0 : orders.length,
+      });
+
+      setOrders((prev) => (reset ? response.data : [...prev, ...response.data]));
+      setTotal(response.total);
+      setHasMore(response.hasMore);
+      lastFetchTimeRef.current = Date.now();
     } catch (error) {
       console.error('Error loading orders:', error);
       Alert.alert('Error', 'Failed to load orders. Please try again.');
     } finally {
       setIsLoading(false);
+      setIsLoadingMore(false);
+      isFetchingRef.current = false;
     }
-  }, [bitsFilter, statusFilter, debouncedSearchQuery]);
+  }, [bitsFilter, statusFilter, dateFilter, debouncedSearchQuery, hasMore, isLoadingMore, orders.length]);
 
-  // Store latest loadOrders in ref
-  const loadOrdersRef = useRef<((customBitsFilter?: string, customStatusFilter?: string) => Promise<void>) | null>(null);
   useEffect(() => {
-    loadOrdersRef.current = loadOrders;
-  }, [loadOrders]);
+    fetchOrders(true);
+  }, [bitsFilter, statusFilter, dateFilter, debouncedSearchQuery]);
 
-  // Load orders when screen comes into focus (only if data is stale)
   useFocusEffect(
     useCallback(() => {
+      if (consumeListDirty('orders')) {
+        fetchOrders(true);
+        return;
+      }
+
       const now = Date.now();
       const lastFetch = lastFetchTimeRef.current;
-      
-      // Only skip if data is fresh (less than 30 seconds old)
-      if (lastFetch !== null && (now - lastFetch) < 30000) {
-        return; // Data is still fresh, skip refetch
+
+      if (lastFetch !== null && (now - lastFetch) < STALE_TIME_MS) {
+        return;
       }
-      
-      // Data is stale or first load, fetch fresh data using ref to avoid dependency issues
-      if (loadOrdersRef.current) {
-        loadOrdersRef.current();
-      }
-    }, []) // Empty deps - use ref to access latest loadOrders
+
+      fetchOrders(true);
+    }, [fetchOrders])
   );
-
-  // Reload when server-side filters change (always reload - filters changed)
-  useEffect(() => {
-    loadOrders(); // Always reload when filters change
-  }, [bitsFilter, statusFilter, debouncedSearchQuery]);
-
-  // Client-side filtering for date (server doesn't support date filtering)
-  const filteredOrders = useMemo(() => {
-    let filtered = orders;
-
-    // Filter by date (client-side only)
-    if (dateFilter !== 'all') {
-      filtered = filtered.filter(order => {
-        const orderDate = new Date(order.date.split('/').reverse().join('-')); // Convert DD/MM/YYYY to YYYY-MM-DD
-        
-        switch (dateFilter) {
-          case 'today':
-            return dateFilterFunctions.today(orderDate);
-          case 'week':
-            return dateFilterFunctions.week(orderDate);
-          case 'month':
-            return dateFilterFunctions.month(orderDate);
-          default:
-            return true;
-        }
-      });
-    }
-
-    return filtered;
-  }, [orders, dateFilter, dateFilterFunctions]);
-
-  // Handle incoming filter parameters and refresh data when they change
-  useEffect(() => {
-    if (incomingBitsFilter || incomingStatusFilter || incomingDateFilter) {
-      // Update states with incoming parameters
-      setBitsFilter(incomingBitsFilter || 'all');
-      setStatusFilter(incomingStatusFilter || 'all');
-      setDateFilter(incomingDateFilter || 'all');
-      
-      // Refresh data with new filters
-      loadOrders(incomingBitsFilter || 'all', incomingStatusFilter || 'all');
-    }
-  }, [incomingBitsFilter, incomingStatusFilter, incomingDateFilter]);
 
   // Memoized callback functions to prevent unnecessary re-renders
   const handleSearchChange = useCallback((query: string) => {
@@ -316,7 +272,7 @@ export default function OrdersScreen() {
 
   const handleOrderPress = useCallback((order: Order) => {
     router.push({
-      pathname: '/orders/order-details',
+      pathname: '/(tabs)/orders/order-details',
       params: {
         orderData: JSON.stringify(order),
         bitsFilter: bitsFilter,
@@ -328,7 +284,7 @@ export default function OrdersScreen() {
 
   const handleEditPress = useCallback((order: Order) => {
     router.push({
-      pathname: '/orders/edit-order',
+      pathname: '/(tabs)/orders/edit-order',
       params: {
         orderData: JSON.stringify(order),
         bitsFilter: bitsFilter,
@@ -353,8 +309,7 @@ export default function OrdersScreen() {
           onPress: async () => {
             try {
               await api.orders.delete(order._id);
-              // Refresh the orders list after deletion
-              await loadOrders();
+              await fetchOrders(true);
             } catch (error) {
               console.error('Error deleting order:', error);
               Alert.alert('Error', 'Failed to delete order. Please try again.');
@@ -363,14 +318,19 @@ export default function OrdersScreen() {
         },
       ]
     );
-  }, [loadOrders]);
+  }, [fetchOrders]);
 
-  // Pull to refresh handler
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await loadOrders();
+    await fetchOrders(true);
     setRefreshing(false);
-  }, [loadOrders]);
+  }, [fetchOrders]);
+
+  const handleLoadMore = useCallback(() => {
+    if (!isLoading && !isLoadingMore && hasMore) {
+      fetchOrders(false);
+    }
+  }, [fetchOrders, isLoading, isLoadingMore, hasMore]);
 
   // Handle opening filter modal - copy current filters to temp state
   const handleOpenFilterModal = useCallback(() => {
@@ -386,9 +346,7 @@ export default function OrdersScreen() {
     setDateFilter(tempDateFilter);
     setBitsFilter(tempBitsFilter);
     setModalVisible(false);
-    // Refresh data when filters are applied with the new filter values
-    loadOrders(tempBitsFilter, tempStatusFilter);
-  }, [tempStatusFilter, tempDateFilter, tempBitsFilter, loadOrders]);
+  }, [tempStatusFilter, tempDateFilter, tempBitsFilter]);
 
   // Handle clearing all filters
   const handleClearAllFilters = useCallback(() => {
@@ -397,57 +355,28 @@ export default function OrdersScreen() {
     setTempBitsFilter('all');
   }, []);
 
-  // Function to get orders that are completed and 31+ days old
-  const getOldCompletedOrders = (allOrders: Order[]): Order[] => {
-    const today = new Date();
-    const thirtyOneDaysAgo = new Date(today);
-    thirtyOneDaysAgo.setDate(today.getDate() - 31);
-    
-    return allOrders.filter(order => {
-      if (order.status !== 'Completed') return false;
-      
-      // Parse the date (format: DD/MM/YYYY)
-      const [day, month, year] = order.date.split('/');
-      const orderDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-      
-      return orderDate <= thirtyOneDaysAgo;
-    });
-  };
-
-  // Handle cleanup of old orders
   const handleCleanupOldOrders = useCallback(async () => {
     try {
-      // Get all orders from the server (not just filtered ones)
-      const allOrders = await api.orders.getAll();
-      const oldOrders = getOldCompletedOrders(allOrders);
-      
-      if (oldOrders.length === 0) {
+      const { count } = await api.orders.getCleanupPreview();
+
+      if (count === 0) {
         Alert.alert('No Old Orders', 'There are no completed orders older than 31 days to clean up.');
         return;
       }
 
-      // Show confirmation before deleting
       Alert.alert(
         'Delete Old Orders',
-        `Found ${oldOrders.length} completed order(s) older than 31 days. Do you want to delete them?`,
+        `Found ${count} completed order(s) older than 31 days. Do you want to delete them?`,
         [
-          {
-            text: 'Cancel',
-            style: 'cancel',
-          },
+          { text: 'Cancel', style: 'cancel' },
           {
             text: 'Delete',
             style: 'destructive',
             onPress: async () => {
               try {
-                // Delete old orders from database
-                const orderIds = oldOrders.map(order => order._id);
-                await api.orders.deleteOldCompleted(orderIds);
-                
-                // Refresh the orders list
-                await loadOrders();
-                
-                Alert.alert('Success', `${oldOrders.length} order(s) have been deleted successfully.`);
+                const result = await api.orders.cleanupOldCompleted();
+                await fetchOrders(true);
+                Alert.alert('Success', `${result.deletedCount} order(s) have been deleted successfully.`);
               } catch (error) {
                 console.error('Error deleting orders:', error);
                 Alert.alert('Error', 'Failed to delete orders. Please try again.');
@@ -460,11 +389,11 @@ export default function OrdersScreen() {
       console.error('Error cleaning up orders:', error);
       Alert.alert('Error', 'Failed to process cleanup. Please try again.');
     }
-  }, [loadOrders]);
+  }, [fetchOrders]);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
+      <StatusBar barStyle="dark-content" backgroundColor="#F2F4F7" />
       
       {/* Search Bar */}
       <SearchBar 
@@ -473,9 +402,11 @@ export default function OrdersScreen() {
         onFilterPress={handleOpenFilterModal}
       />
 
-      {/* Orders List */}
-      <ScrollView 
-        style={styles.ordersContainer} 
+      <FlatList
+        style={styles.ordersContainer}
+        contentContainerStyle={styles.ordersListContent}
+        data={orders}
+        keyExtractor={(item) => item._id}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
@@ -485,53 +416,65 @@ export default function OrdersScreen() {
             tintColor="#007AFF"
           />
         }
-      >
-        <View style={styles.ordersHeader}>
-          <Text style={styles.ordersTitle}>
-            Orders ({filteredOrders.length})
-          </Text>
-          <TouchableOpacity 
-            style={styles.cleanupButton}
-            onPress={handleCleanupOldOrders}
-          >
-            <Ionicons name="brush-outline" size={24} color="#666" />
-          </TouchableOpacity>
-        </View>
-        
-        <View style={styles.ordersList}>
-          {isLoading ? (
+        onEndReached={handleLoadMore}
+        onEndReachedThreshold={0.4}
+        ListHeaderComponent={
+          <View style={styles.ordersHeader}>
+            <View style={styles.ordersTitleRow}>
+              <Text style={styles.ordersTitle}>Orders</Text>
+              <View style={styles.countBadge}>
+                <Text style={styles.countBadgeText}>{total}</Text>
+              </View>
+            </View>
+            <TouchableOpacity
+              style={styles.cleanupButton}
+              onPress={handleCleanupOldOrders}
+            >
+              <Ionicons name="brush-outline" size={20} color="#FF9500" />
+            </TouchableOpacity>
+          </View>
+        }
+        renderItem={({ item }) => (
+          <OrderCard
+            order={item}
+            onPress={handleOrderPress}
+            onEdit={handleEditPress}
+            onDelete={handleDeletePress}
+          />
+        )}
+        ItemSeparatorComponent={() => <View style={styles.orderSeparator} />}
+        ListFooterComponent={
+          isLoadingMore ? (
+            <View style={styles.footerLoader}>
+              <ActivityIndicator size="small" color="#007AFF" />
+            </View>
+          ) : null
+        }
+        ListEmptyComponent={
+          isLoading ? (
             <View style={styles.loadingState}>
               <ActivityIndicator size="large" color="#007AFF" />
               <Text style={styles.loadingText}>Loading orders...</Text>
             </View>
-          ) : filteredOrders.length > 0 ? (
-            filteredOrders.map((order) => (
-              <OrderCard 
-                key={order._id} 
-                order={order} 
-                onPress={handleOrderPress}
-                onEdit={handleEditPress}
-                onDelete={handleDeletePress}
-              />
-            ))
           ) : (
             <View style={styles.emptyState}>
-              <Ionicons name="receipt-outline" size={64} color="#ccc" />
+              <View style={styles.emptyIconWrap}>
+                <Ionicons name="receipt-outline" size={32} color="#007AFF" />
+              </View>
               <Text style={styles.emptyText}>
                 {searchQuery.trim() ? 'No Matching Orders' : 'No Orders Found'}
               </Text>
               <Text style={styles.emptySubtext}>
-                {searchQuery.trim() 
+                {searchQuery.trim()
                   ? `No orders found for "${searchQuery}"`
                   : bitsFilter !== 'all' || statusFilter !== 'all' || dateFilter !== 'all'
                     ? 'Try adjusting your filters'
-                    : 'Orders will appear here when created'
-                }
+                    : 'Orders will appear here when created'}
               </Text>
             </View>
-          )}
-        </View>
-      </ScrollView>
+          )
+        }
+      />
 
       {/* Filter Modal */}
       <Modal
@@ -558,7 +501,7 @@ export default function OrdersScreen() {
               onPress={() => setModalVisible(false)}
               style={styles.closeButton}
             >
-              <Ionicons name="close" size={24} color="#666" />
+              <Ionicons name="close" size={20} color="#636366" />
             </TouchableOpacity>
           </View>
           
@@ -653,70 +596,108 @@ export default function OrdersScreen() {
   );
 }
 
-// Styles remain the same
+// Styles
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#F2F4F7',
   },
   searchContainer: {
     paddingHorizontal: 20,
-    paddingVertical: 15,
-    backgroundColor: '#ffffff',
+    paddingTop: 12,
+    paddingBottom: 8,
+    backgroundColor: '#F2F4F7',
   },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f5f5f5',
-    borderRadius: 25,
-    paddingHorizontal: 15,
-    paddingVertical: 12,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+    borderWidth: 1,
+    borderColor: '#E8ECF0',
+    shadowColor: '#0A1628',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
   },
   searchInput: {
     flex: 1,
-    fontSize: 16,
-    color: '#333',
+    fontSize: 15,
+    color: '#1A1A1A',
     marginLeft: 10,
   },
   filterButton: {
-    padding: 5,
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: '#E8F4FF',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   ordersContainer: {
     flex: 1,
     paddingHorizontal: 20,
   },
+  ordersListContent: {
+    paddingBottom: 20,
+    flexGrow: 1,
+  },
+  orderSeparator: {
+    height: 10,
+  },
+  footerLoader: {
+    paddingVertical: 16,
+    alignItems: 'center',
+  },
   ordersHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 15,
+    paddingVertical: 14,
+  },
+  ordersTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
   },
   ordersTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#1A1A1A',
+  },
+  countBadge: {
+    backgroundColor: '#0A1628',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 10,
+  },
+  countBadgeText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
   cleanupButton: {
-    padding: 8,
-    borderRadius: 8,
-    backgroundColor: '#f5f5f5',
-  },
-  ordersList: {
-    gap: 12,
-    paddingBottom: 20,
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: '#FFF4E5',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   orderCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
     padding: 16,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 5,
+    borderWidth: 1,
+    borderColor: '#EEF1F5',
+    shadowColor: '#0A1628',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 3,
   },
   orderHeader: {
     flexDirection: 'row',
@@ -725,18 +706,18 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   retailerRow: {
-    marginBottom: 8,
+    marginBottom: 10,
   },
   bitAndActionsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 10,
   },
   itemsAndDateRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    gap: 8,
   },
   actionButtons: {
     flexDirection: 'row',
@@ -744,68 +725,123 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   editButton: {
-    padding: 8,
-    borderRadius: 8,
-    backgroundColor: '#F0F8FF',
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: '#E8F4FF',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   deleteButton: {
-    padding: 8,
-    borderRadius: 8,
-    backgroundColor: '#FFF5F5',
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: '#FFF0F0',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   orderNumber: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 12,
+    fontWeight: '700',
     color: '#007AFF',
+    letterSpacing: 0.3,
   },
   counterName: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
+    fontSize: 17,
+    fontWeight: '600',
+    color: '#1A1A1A',
+    lineHeight: 22,
   },
   statusBadge: {
-    paddingHorizontal: 12,
+    paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 12,
+    borderRadius: 8,
+  },
+  statusCompleted: {
+    backgroundColor: '#E8F9EE',
+  },
+  statusPending: {
+    backgroundColor: '#FFF4E5',
   },
   statusText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#ffffff',
+    fontSize: 11,
+    fontWeight: '700',
   },
-  detailItem: {
+  statusTextCompleted: {
+    color: '#248A3D',
+  },
+  statusTextPending: {
+    color: '#C93400',
+  },
+  bitBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    backgroundColor: '#E8F4FF',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    gap: 4,
+    maxWidth: '65%',
   },
-  detailText: {
-    fontSize: 14,
-    color: '#666666',
+  bitText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#007AFF',
+    flexShrink: 1,
+  },
+  metaChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F2F4F7',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    gap: 5,
+  },
+  metaChipText: {
+    fontSize: 12,
+    color: '#636366',
+    fontWeight: '500',
   },
   loadingState: {
     alignItems: 'center',
-    paddingVertical: 40,
+    paddingVertical: 48,
     gap: 12,
   },
   loadingText: {
-    fontSize: 16,
-    color: '#666666',
+    fontSize: 14,
+    color: '#8E8E93',
+    fontWeight: '500',
   },
   emptyState: {
     alignItems: 'center',
-    paddingVertical: 60,
+    paddingVertical: 48,
+    paddingHorizontal: 24,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#EEF1F5',
+  },
+  emptyIconWrap: {
+    width: 64,
+    height: 64,
+    borderRadius: 18,
+    backgroundColor: '#E8F4FF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
   },
   emptyText: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '600',
-    color: '#666666',
-    marginTop: 16,
+    color: '#1A1A1A',
   },
   emptySubtext: {
     fontSize: 14,
-    color: '#999999',
-    marginTop: 4,
+    color: '#8E8E93',
+    marginTop: 6,
     textAlign: 'center',
+    lineHeight: 20,
   },
   modal: {
     justifyContent: 'flex-end',
@@ -818,13 +854,13 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    backgroundColor: 'rgba(10, 22, 40, 0.55)',
     zIndex: 0,
   },
   modalContent: {
-    backgroundColor: '#ffffff',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
     maxHeight: '80%',
     minHeight: '50%',
     zIndex: 1,
@@ -834,18 +870,23 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 15,
+    paddingVertical: 18,
     paddingHorizontal: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#e5e5ea',
+    borderBottomColor: '#F2F4F7',
   },
   modalTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
+    fontWeight: '700',
+    color: '#0A1628',
   },
   closeButton: {
-    padding: 5,
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: '#F2F4F7',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   modalBody: {
     maxHeight: 400,
@@ -853,13 +894,15 @@ const styles = StyleSheet.create({
     paddingTop: 20,
   },
   filterSection: {
-    marginBottom: 20,
+    marginBottom: 22,
   },
   filterSectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333333',
-    marginBottom: 10,
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#8E8E93',
+    marginBottom: 12,
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
   },
   filterOptions: {
     flexDirection: 'row',
@@ -867,61 +910,59 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   filterOption: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#e5e5ea',
-    backgroundColor: '#ffffff',
+    borderColor: '#E8ECF0',
+    backgroundColor: '#F2F4F7',
   },
   filterOptionSelected: {
-    backgroundColor: '#007AFF',
-    borderColor: '#007AFF',
+    backgroundColor: '#0A1628',
+    borderColor: '#0A1628',
   },
   filterOptionText: {
     fontSize: 14,
-    color: '#666666',
-    fontWeight: '500',
+    color: '#636366',
+    fontWeight: '600',
   },
   filterOptionTextSelected: {
-    color: '#ffffff',
-    fontWeight: '600',
+    color: '#FFFFFF',
   },
   filterActions: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 20,
+    marginTop: 8,
     paddingHorizontal: 20,
     paddingBottom: 20,
+    gap: 12,
   },
   clearButton: {
     flex: 1,
-    paddingVertical: 12,
+    paddingVertical: 14,
     paddingHorizontal: 20,
-    borderRadius: 8,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#e5e5ea',
-    backgroundColor: '#ffffff',
-    marginRight: 10,
+    borderColor: '#E8ECF0',
+    backgroundColor: '#FFFFFF',
   },
   clearButtonText: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
-    color: '#666666',
+    color: '#636366',
     textAlign: 'center',
   },
   applyButton: {
     flex: 1,
-    paddingVertical: 12,
+    paddingVertical: 14,
     paddingHorizontal: 20,
-    borderRadius: 8,
+    borderRadius: 12,
     backgroundColor: '#007AFF',
-    marginLeft: 10,
   },
   applyButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#ffffff',
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#FFFFFF',
     textAlign: 'center',
   },
 });

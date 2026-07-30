@@ -1,10 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Image, Modal, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, FlatList, Image, Modal, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import DraggableFlatList, { RenderItemParams } from 'react-native-draggable-flatlist';
-import { api, Brand, Product } from '../../utils/api';
+import { api, Brand, Product } from '../../../utils/api';
 
 interface SelectedItem {
   productId: string;
@@ -14,6 +14,8 @@ interface SelectedItem {
   quantity: number;
   productNotes?: string;
 }
+
+const PAGE_SIZE = 10;
 
 export default function NewOrderScreen() {
   const router = useRouter();
@@ -34,12 +36,24 @@ export default function NewOrderScreen() {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [selectedBrand, setSelectedBrand] = useState<Brand | null>(null);
   const [selectedItems, setSelectedItems] = useState<SelectedItem[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
   const [brands, setBrands] = useState<Brand[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [brandsTotal, setBrandsTotal] = useState(0);
+  const [brandsHasMore, setBrandsHasMore] = useState(false);
+  const [isLoadingBrands, setIsLoadingBrands] = useState(true);
+  const [isLoadingMoreBrands, setIsLoadingMoreBrands] = useState(false);
+  const [brandProducts, setBrandProducts] = useState<Product[]>([]);
+  const [productsHasMore, setProductsHasMore] = useState(false);
+  const [isLoadingProducts, setIsLoadingProducts] = useState(false);
+  const [isLoadingMoreProducts, setIsLoadingMoreProducts] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [isDatePickerVisible, setIsDatePickerVisible] = useState(false);
+
+  const isFetchingBrandsRef = useRef(false);
+  const isFetchingProductsRef = useRef(false);
+  const [productSelections, setProductSelections] = useState<{
+    [key: string]: { unit: 'Pc' | 'Outer' | 'Case'; quantity: number; productNotes: string };
+  }>({});
 
   // Restore selected items from URL params when component mounts or params change
   useEffect(() => {
@@ -68,38 +82,82 @@ export default function NewOrderScreen() {
     }
   }, [orderDate]);
 
-  // Load products and brands data
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        setIsLoading(true);
-        const [productsData, brandsData] = await Promise.all([
-          api.products.getAll(),
-          api.brands.getAll()
-        ]);
-        setProducts(productsData);
-        setBrands(brandsData);
-      } catch (error) {
-        console.error('Error loading products and brands:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
+  const fetchBrands = useCallback(async (reset: boolean) => {
+    if (isFetchingBrandsRef.current) return;
+    if (!reset && !brandsHasMore) return;
 
-    loadData();
+    isFetchingBrandsRef.current = true;
+
+    try {
+      if (reset) {
+        setIsLoadingBrands(true);
+      } else {
+        setIsLoadingMoreBrands(true);
+      }
+
+      const response = await api.brands.getPage({
+        limit: PAGE_SIZE,
+        skip: reset ? 0 : brands.length,
+      });
+
+      const pageData = response.data ?? [];
+      setBrands((prev) => (reset ? pageData : [...prev, ...pageData]));
+      setBrandsTotal(response.total ?? pageData.length);
+      setBrandsHasMore(response.hasMore ?? false);
+    } catch (error) {
+      console.error('Error loading brands:', error);
+    } finally {
+      setIsLoadingBrands(false);
+      setIsLoadingMoreBrands(false);
+      isFetchingBrandsRef.current = false;
+    }
+  }, [brands.length, brandsHasMore]);
+
+  const fetchBrandProducts = useCallback(async (brand: Brand, reset: boolean) => {
+    if (isFetchingProductsRef.current) return;
+    if (!reset && !productsHasMore) return;
+
+    isFetchingProductsRef.current = true;
+
+    try {
+      if (reset) {
+        setIsLoadingProducts(true);
+      } else {
+        setIsLoadingMoreProducts(true);
+      }
+
+      const response = await api.products.getPage({
+        brand: brand.name,
+        limit: PAGE_SIZE,
+        skip: reset ? 0 : brandProducts.length,
+      });
+
+      const pageData = response.data ?? [];
+      setBrandProducts((prev) => (reset ? pageData : [...prev, ...pageData]));
+      setProductsHasMore(response.hasMore ?? false);
+    } catch (error) {
+      console.error('Error loading products:', error);
+    } finally {
+      setIsLoadingProducts(false);
+      setIsLoadingMoreProducts(false);
+      isFetchingProductsRef.current = false;
+    }
+  }, [brandProducts.length, productsHasMore]);
+
+  useEffect(() => {
+    fetchBrands(true);
   }, []);
 
-  const getBrandProducts = (brandId: string) => {
-    return products.filter(product => product.brandId === brandId);
-  };
-
-  const getBrandProductCount = (brandId: string) => {
-    return products.filter(product => product.brandId === brandId).length;
-  };
+  useEffect(() => {
+    setProductSelections({});
+  }, [selectedBrand?._id]);
 
   const handleBrandPress = (brand: Brand) => {
     setSelectedBrand(brand);
+    setBrandProducts([]);
+    setProductsHasMore(true);
     setIsModalVisible(true);
+    fetchBrandProducts(brand, true);
   };
 
   const handleAddToOrder = (product: Product, unit: 'Pc' | 'Outer' | 'Case', quantity: number, productNotes?: string) => {
@@ -135,7 +193,7 @@ export default function NewOrderScreen() {
 
   const handleNavigateToSummary = () => {
     router.push({
-      pathname: '/orders/order-summary',
+      pathname: '/(tabs)/orders/order-summary',
       params: {
         retailerName: retailerName || 'N/A',
         retailerPhone: retailerPhone || 'N/A',
@@ -168,184 +226,151 @@ export default function NewOrderScreen() {
     setIsDragging(true);
   };
 
-  const ProductModal = () => {
-    const [productSelections, setProductSelections] = useState<{[key: string]: {unit: 'Pc' | 'Outer' | 'Case', quantity: number, productNotes: string}}>({});
-
-    const handleUnitChange = (productId: string, unit: 'Pc' | 'Outer' | 'Case') => {
-      setProductSelections(prev => ({
-        ...prev,
-        [productId]: {
-          unit,
-          quantity: prev[productId]?.quantity || 0,
-          productNotes: prev[productId]?.productNotes || ''
-        }
-      }));
-    };
-
-    const handleQuantityChange = (productId: string, quantity: number) => {
-      setProductSelections(prev => ({
-        ...prev,
-        [productId]: {
-          unit: prev[productId]?.unit || 'Pc',
-          quantity: Math.max(0, quantity),
-          productNotes: prev[productId]?.productNotes || ''
-        }
-      }));
-    };
-
-    const handleNotesChange = (productId: string, productNotes: string) => {
-      setProductSelections(prev => ({
-        ...prev,
-        [productId]: {
-          unit: prev[productId]?.unit || 'Pc',
-          quantity: prev[productId]?.quantity || 0,
-          productNotes
-        }
-      }));
-    };
-
-    const handleAddSelected = () => {
-      Object.entries(productSelections).forEach(([productId, selection]) => {
-        if (selection.quantity > 0) {
-          const product = products.find(p => p._id === productId);
-          if (product) {
-            handleAddToOrder(product, selection.unit, selection.quantity, selection.productNotes);
-          }
-        }
-      });
-      setIsModalVisible(false);
-      setProductSelections({});
-    };
-
-    const brandProducts = selectedBrand ? getBrandProducts(selectedBrand._id) : [];
-
-    return (
-      <Modal
-        visible={isModalVisible}
-        animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={() => setIsModalVisible(false)}
-      >
-        <SafeAreaView style={styles.modalContainer}>
-          {/* Header */}
-          <View style={styles.modalHeader}>
-            <TouchableOpacity onPress={() => setIsModalVisible(false)}>
-              <Ionicons name="close" size={24} color="#666" />
-            </TouchableOpacity>
-            <Text style={styles.modalTitle}>Products</Text>
-            <TouchableOpacity onPress={handleAddSelected}>
-              <Text style={styles.addButton}>Add</Text>
-            </TouchableOpacity>
-          </View>
-
-
-          {/* Category Header */}
-          <View style={styles.categoryHeader}>
-            <Text style={styles.categoryTitle}>{selectedBrand?.name}</Text>
-            <TouchableOpacity onPress={() => setIsModalVisible(false)}>
-              <Ionicons name="close" size={24} color="#666" />
-            </TouchableOpacity>
-          </View>
-
-          {/* Products List */}
-          <ScrollView style={styles.modalContent} showsVerticalScrollIndicator={false}>
-            {brandProducts.map((product) => (
-              <View key={product._id} style={styles.productItem}>
-                {/* Product Name */}
-                <Text style={styles.productName}>{product.name}</Text>
-                
-                {/* Unit Selection and Quantity - Inline */}
-                <View style={styles.productControls}>
-                  {/* Unit Selection */}
-                  <View style={styles.unitSelection}>
-                    {(['Pc', 'Outer', 'Case'] as const).map((unit) => (
-                      <TouchableOpacity
-                        key={unit}
-                        style={[
-                          styles.unitButton,
-                          productSelections[product._id]?.unit === unit && styles.unitButtonSelected
-                        ]}
-                        onPress={() => handleUnitChange(product._id, unit)}
-                      >
-                        <Text style={[
-                          styles.unitText,
-                          productSelections[product._id]?.unit === unit && styles.unitTextSelected
-                        ]}>
-                          {unit}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-
-                  {/* Quantity Selection */}
-                  <View style={styles.quantitySection}>
-                    <View
-                      style={[
-                        styles.quantityControls,
-                        (productSelections[product._id]?.quantity || 0) > 0 && styles.quantityControlsSelected
-                      ]}
-                    >
-                      <TouchableOpacity
-                        style={styles.quantityButton}
-                        onPress={() => handleQuantityChange(product._id, (productSelections[product._id]?.quantity || 0) - 1)}
-                      >
-                        <Ionicons 
-                          name="remove" 
-                          size={16} 
-                          color={(productSelections[product._id]?.quantity || 0) > 0 ? "#ffffff" : "#8B5CF6"} 
-                        />
-                      </TouchableOpacity>
-                      <TextInput
-                        style={[
-                          styles.quantityInput,
-                          (productSelections[product._id]?.quantity || 0) > 0 && styles.quantityInputSelected
-                        ]}
-                        value={productSelections[product._id]?.quantity?.toString() || '0'}
-                        onChangeText={(text) => {
-                          const numericValue = parseInt(text) || 0;
-                          handleQuantityChange(product._id, Math.max(0, numericValue));
-                        }}
-                        keyboardType="numeric"
-                        selectTextOnFocus
-                        maxLength={6}
-                        placeholder="0"
-                        placeholderTextColor="#8B5CF6"
-                      />
-                      <TouchableOpacity
-                        style={styles.quantityButton}
-                        onPress={() => handleQuantityChange(product._id, (productSelections[product._id]?.quantity || 0) + 1)}
-                      >
-                        <Ionicons 
-                          name="add" 
-                          size={16} 
-                          color={(productSelections[product._id]?.quantity || 0) > 0 ? "#ffffff" : "#8B5CF6"} 
-                        />
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                </View>
-                
-                {/* Notes Input */}
-                <View style={styles.notesSection}>
-                  <Text style={styles.notesLabel}>Notes (Optional)</Text>
-                  <TextInput
-                    style={styles.notesInput}
-                    placeholder="Add notes for this product..."
-                    placeholderTextColor="#999"
-                    value={productSelections[product._id]?.productNotes || ''}
-                    onChangeText={(text) => handleNotesChange(product._id, text)}
-                    multiline
-                    numberOfLines={2}
-                    maxLength={500}
-                  />
-                </View>
-              </View>
-            ))}
-          </ScrollView>
-        </SafeAreaView>
-      </Modal>
-    );
+  const handleProductUnitChange = (productId: string, unit: 'Pc' | 'Outer' | 'Case') => {
+    setProductSelections((prev) => ({
+      ...prev,
+      [productId]: {
+        unit,
+        quantity: prev[productId]?.quantity || 0,
+        productNotes: prev[productId]?.productNotes || '',
+      },
+    }));
   };
+
+  const handleProductQuantityChange = (productId: string, quantity: number) => {
+    setProductSelections((prev) => ({
+      ...prev,
+      [productId]: {
+        unit: prev[productId]?.unit || 'Pc',
+        quantity: Math.max(0, quantity),
+        productNotes: prev[productId]?.productNotes || '',
+      },
+    }));
+  };
+
+  const handleProductNotesChange = (productId: string, productNotes: string) => {
+    setProductSelections((prev) => ({
+      ...prev,
+      [productId]: {
+        unit: prev[productId]?.unit || 'Pc',
+        quantity: prev[productId]?.quantity || 0,
+        productNotes,
+      },
+    }));
+  };
+
+  const handleAddSelectedProducts = () => {
+    Object.entries(productSelections).forEach(([productId, selection]) => {
+      if (selection.quantity > 0) {
+        const product = brandProducts.find((p) => p._id === productId);
+        if (product) {
+          handleAddToOrder(product, selection.unit, selection.quantity, selection.productNotes);
+        }
+      }
+    });
+    setIsModalVisible(false);
+    setProductSelections({});
+  };
+
+  const renderProductItem = (product: Product) => (
+    <View style={styles.productItem}>
+      <Text style={styles.productName}>{product.name}</Text>
+
+      <View style={styles.productControls}>
+        <View style={styles.unitSelection}>
+          {(['Pc', 'Outer', 'Case'] as const).map((unit) => (
+            <TouchableOpacity
+              key={unit}
+              style={[
+                styles.unitButton,
+                productSelections[product._id]?.unit === unit && styles.unitButtonSelected,
+              ]}
+              onPress={() => handleProductUnitChange(product._id, unit)}
+            >
+              <Text
+                style={[
+                  styles.unitText,
+                  productSelections[product._id]?.unit === unit && styles.unitTextSelected,
+                ]}
+              >
+                {unit}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        <View style={styles.quantitySection}>
+          <View
+            style={[
+              styles.quantityControls,
+              (productSelections[product._id]?.quantity || 0) > 0 && styles.quantityControlsSelected,
+            ]}
+          >
+            <TouchableOpacity
+              style={styles.quantityButton}
+              onPress={() =>
+                handleProductQuantityChange(
+                  product._id,
+                  (productSelections[product._id]?.quantity || 0) - 1
+                )
+              }
+            >
+              <Ionicons
+                name="remove"
+                size={16}
+                color={(productSelections[product._id]?.quantity || 0) > 0 ? '#ffffff' : '#8B5CF6'}
+              />
+            </TouchableOpacity>
+            <TextInput
+              style={[
+                styles.quantityInput,
+                (productSelections[product._id]?.quantity || 0) > 0 && styles.quantityInputSelected,
+              ]}
+              value={productSelections[product._id]?.quantity?.toString() || '0'}
+              onChangeText={(text) => {
+                const numericValue = parseInt(text, 10) || 0;
+                handleProductQuantityChange(product._id, Math.max(0, numericValue));
+              }}
+              keyboardType="numeric"
+              selectTextOnFocus
+              maxLength={6}
+              placeholder="0"
+              placeholderTextColor="#8B5CF6"
+            />
+            <TouchableOpacity
+              style={styles.quantityButton}
+              onPress={() =>
+                handleProductQuantityChange(
+                  product._id,
+                  (productSelections[product._id]?.quantity || 0) + 1
+                )
+              }
+            >
+              <Ionicons
+                name="add"
+                size={16}
+                color={(productSelections[product._id]?.quantity || 0) > 0 ? '#ffffff' : '#8B5CF6'}
+              />
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+
+      <View style={styles.notesSection}>
+        <Text style={styles.notesLabel}>Notes (Optional)</Text>
+        <TextInput
+          style={styles.notesInput}
+          placeholder="Add notes for this product..."
+          placeholderTextColor="#999"
+          value={productSelections[product._id]?.productNotes || ''}
+          onChangeText={(text) => handleProductNotesChange(product._id, text)}
+          multiline
+          numberOfLines={2}
+          maxLength={500}
+        />
+      </View>
+    </View>
+  );
 
   const CustomDatePicker = () => {
     const formatDate = (date: Date) => {
@@ -507,7 +532,7 @@ export default function NewOrderScreen() {
       <Image source={{ uri: brand.image }} style={styles.brandImage} />
       <View style={styles.brandInfo}>
         <Text style={styles.brandName}>{brand.name}</Text>
-        <Text style={styles.productCount}>{brand.productCount || getBrandProductCount(brand._id)} Products</Text>
+        <Text style={styles.productCount}>{brand.productCount} Products</Text>
       </View>
       
       {!isActive && (
@@ -578,14 +603,14 @@ export default function NewOrderScreen() {
       <View style={styles.brandsContainer}>
         <View style={styles.brandsHeader}>
           <Text style={styles.brandsTitle}>
-            Available Brands ({brands.length})
+            Available Brands ({brandsTotal})
           </Text>
           {isDragging && (
             <Text style={styles.dragHint}>Drag to reorder brands</Text>
           )}
         </View>
         
-        {isLoading ? (
+        {isLoadingBrands ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color="#007AFF" />
             <Text style={styles.loadingText}>Loading brands...</Text>
@@ -605,6 +630,19 @@ export default function NewOrderScreen() {
             )}
             contentContainerStyle={styles.brandsList}
             showsVerticalScrollIndicator={false}
+            onEndReached={() => {
+              if (!isLoadingBrands && !isLoadingMoreBrands && brandsHasMore) {
+                fetchBrands(false);
+              }
+            }}
+            onEndReachedThreshold={0.4}
+            ListFooterComponent={
+              isLoadingMoreBrands ? (
+                <View style={styles.brandsFooterLoader}>
+                  <ActivityIndicator size="small" color="#007AFF" />
+                </View>
+              ) : null
+            }
           />
         )}
       </View>
@@ -622,7 +660,71 @@ export default function NewOrderScreen() {
         </TouchableOpacity>
       )}
 
-      <ProductModal />
+      <Modal
+        visible={isModalVisible}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setIsModalVisible(false)}
+      >
+        <SafeAreaView style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <TouchableOpacity onPress={() => setIsModalVisible(false)}>
+              <Ionicons name="close" size={24} color="#666" />
+            </TouchableOpacity>
+            <Text style={styles.modalTitle}>Products</Text>
+            <TouchableOpacity onPress={handleAddSelectedProducts}>
+              <Text style={styles.addButton}>Add</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.categoryHeader}>
+            <Text style={styles.categoryTitle}>{selectedBrand?.name}</Text>
+            <TouchableOpacity onPress={() => setIsModalVisible(false)}>
+              <Ionicons name="close" size={24} color="#666" />
+            </TouchableOpacity>
+          </View>
+
+          {isLoadingProducts && brandProducts.length === 0 ? (
+            <View style={styles.modalFullLoading}>
+              <ActivityIndicator size="large" color="#007AFF" />
+              <Text style={styles.loadingText}>Loading products...</Text>
+            </View>
+          ) : (
+            <FlatList
+              data={brandProducts}
+              keyExtractor={(item) => item._id}
+              renderItem={({ item }) => renderProductItem(item)}
+              style={styles.modalContent}
+              contentContainerStyle={styles.modalListContent}
+              showsVerticalScrollIndicator={false}
+              onEndReached={() => {
+                if (
+                  selectedBrand &&
+                  !isLoadingProducts &&
+                  !isLoadingMoreProducts &&
+                  productsHasMore
+                ) {
+                  fetchBrandProducts(selectedBrand, false);
+                }
+              }}
+              onEndReachedThreshold={0.4}
+              ListEmptyComponent={
+                <View style={styles.modalEmptyContainer}>
+                  <Ionicons name="cube-outline" size={48} color="#ccc" />
+                  <Text style={styles.modalEmptyText}>No products for this brand</Text>
+                </View>
+              }
+              ListFooterComponent={
+                isLoadingMoreProducts ? (
+                  <View style={styles.modalFooterLoader}>
+                    <ActivityIndicator size="small" color="#007AFF" />
+                  </View>
+                ) : null
+              }
+            />
+          )}
+        </SafeAreaView>
+      </Modal>
       <CustomDatePicker />
     </SafeAreaView>
   );
@@ -835,6 +937,40 @@ const styles = StyleSheet.create({
   modalContent: {
     flex: 1,
     backgroundColor: '#ffffff',
+  },
+  modalListContent: {
+    flexGrow: 1,
+  },
+  modalLoadingContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 48,
+    gap: 12,
+  },
+  modalFullLoading: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+  },
+  modalEmptyContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 48,
+    gap: 12,
+  },
+  modalEmptyText: {
+    fontSize: 15,
+    color: '#8E8E93',
+    fontWeight: '500',
+  },
+  modalFooterLoader: {
+    paddingVertical: 16,
+    alignItems: 'center',
+  },
+  brandsFooterLoader: {
+    paddingVertical: 16,
+    alignItems: 'center',
   },
   productItem: {
     paddingHorizontal: 20,

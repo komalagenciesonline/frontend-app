@@ -63,6 +63,54 @@ export interface DashboardStats {
   totalBits: number;
 }
 
+export interface PaginatedOrdersResponse {
+  data: Order[];
+  total: number;
+  limit: number;
+  skip: number;
+  hasMore: boolean;
+}
+
+export interface OrdersPageParams {
+  bit?: string;
+  status?: string;
+  search?: string;
+  date?: string;
+  limit?: number;
+  skip?: number;
+}
+
+export interface PaginatedResponse<T> {
+  data: T[];
+  total: number;
+  limit: number;
+  skip: number;
+  hasMore: boolean;
+}
+
+export type PaginatedProductsResponse = PaginatedResponse<Product>;
+export type PaginatedBrandsResponse = PaginatedResponse<Brand>;
+export type PaginatedRetailersResponse = PaginatedResponse<Retailer>;
+
+export interface BrandsPageParams {
+  limit?: number;
+  skip?: number;
+}
+
+export interface ProductsPageParams {
+  brand?: string;
+  search?: string;
+  limit?: number;
+  skip?: number;
+}
+
+export interface RetailersPageParams {
+  bit?: string;
+  search?: string;
+  limit?: number;
+  skip?: number;
+}
+
 export interface PendingOrderItem {
   productId: string;
   productName: string;
@@ -114,16 +162,64 @@ const apiCall = async <T>(
   }
 };
 
+function normalizePaginatedResponse<T>(
+  raw: PaginatedResponse<T> | T[],
+  limit: number,
+  skip: number
+): PaginatedResponse<T> {
+  if (Array.isArray(raw)) {
+    const data = raw.slice(skip, skip + limit);
+    return {
+      data,
+      total: raw.length,
+      limit,
+      skip,
+      hasMore: skip + data.length < raw.length,
+    };
+  }
+
+  const data = raw.data ?? [];
+  return {
+    data,
+    total: raw.total ?? data.length,
+    limit: raw.limit ?? limit,
+    skip: raw.skip ?? skip,
+    hasMore: raw.hasMore ?? false,
+  };
+}
+
 // Product API functions
 export const productAPI = {
-  // Get all products with optional filtering
+  getPage: async (params: ProductsPageParams = {}): Promise<PaginatedProductsResponse> => {
+    const urlParams = new URLSearchParams();
+    if (params.brand && params.brand !== 'all') urlParams.append('brand', params.brand);
+    if (params.search) urlParams.append('search', params.search);
+    if (params.limit !== undefined) urlParams.append('limit', String(params.limit));
+    if (params.skip !== undefined) urlParams.append('skip', String(params.skip));
+
+    const limit = params.limit ?? 10;
+    const skip = params.skip ?? 0;
+    const queryString = urlParams.toString();
+    const raw = await apiCall<PaginatedProductsResponse | Product[]>(
+      `/products${queryString ? `?${queryString}` : ''}`
+    );
+    return normalizePaginatedResponse(raw, limit, skip);
+  },
+
   getAll: async (brand?: string, search?: string): Promise<Product[]> => {
-    const params = new URLSearchParams();
-    if (brand && brand !== 'all') params.append('brand', brand);
-    if (search) params.append('search', search);
-    
-    const queryString = params.toString();
-    return apiCall<Product[]>(`/products${queryString ? `?${queryString}` : ''}`);
+    const allProducts: Product[] = [];
+    let skip = 0;
+    const limit = 50;
+    let hasMore = true;
+
+    while (hasMore) {
+      const page = await productAPI.getPage({ brand, search, limit, skip });
+      allProducts.push(...page.data);
+      hasMore = page.hasMore;
+      skip += limit;
+    }
+
+    return allProducts;
   },
 
   // Get product by ID
@@ -178,9 +274,35 @@ export const productAPI = {
 
 // Brand API functions
 export const brandAPI = {
-  // Get all brands
+  getPage: async (params: BrandsPageParams = {}): Promise<PaginatedBrandsResponse> => {
+    const urlParams = new URLSearchParams();
+    if (params.limit !== undefined) urlParams.append('limit', String(params.limit));
+    if (params.skip !== undefined) urlParams.append('skip', String(params.skip));
+
+    const limit = params.limit ?? 10;
+    const skip = params.skip ?? 0;
+    const queryString = urlParams.toString();
+    const raw = await apiCall<PaginatedBrandsResponse | Brand[]>(
+      `/brands${queryString ? `?${queryString}` : ''}`
+    );
+    return normalizePaginatedResponse(raw, limit, skip);
+  },
+
+  // Get all brands (loops pages for screens that need the full list)
   getAll: async (): Promise<Brand[]> => {
-    return apiCall<Brand[]>('/brands');
+    const allBrands: Brand[] = [];
+    let skip = 0;
+    const limit = 50;
+    let hasMore = true;
+
+    while (hasMore) {
+      const page = await brandAPI.getPage({ limit, skip });
+      allBrands.push(...page.data);
+      hasMore = page.hasMore;
+      skip += limit;
+    }
+
+    return allBrands;
   },
 
   // Get brand by ID
@@ -235,15 +357,17 @@ export const brandAPI = {
 
 // Order API functions
 export const orderAPI = {
-  // Get all orders with optional filtering
-  getAll: async (bit?: string, status?: string, search?: string): Promise<Order[]> => {
-    const params = new URLSearchParams();
-    if (bit && bit !== 'all') params.append('bit', bit);
-    if (status) params.append('status', status);
-    if (search) params.append('search', search);
-    
-    const queryString = params.toString();
-    return apiCall<Order[]>(`/orders${queryString ? `?${queryString}` : ''}`);
+  getPage: async (params: OrdersPageParams = {}): Promise<PaginatedOrdersResponse> => {
+    const urlParams = new URLSearchParams();
+    if (params.bit && params.bit !== 'all') urlParams.append('bit', params.bit);
+    if (params.status && params.status !== 'all') urlParams.append('status', params.status);
+    if (params.date && params.date !== 'all') urlParams.append('date', params.date);
+    if (params.search) urlParams.append('search', params.search);
+    if (params.limit !== undefined) urlParams.append('limit', String(params.limit));
+    if (params.skip !== undefined) urlParams.append('skip', String(params.skip));
+
+    const queryString = urlParams.toString();
+    return apiCall<PaginatedOrdersResponse>(`/orders${queryString ? `?${queryString}` : ''}`);
   },
 
   // Get order by ID
@@ -299,11 +423,14 @@ export const orderAPI = {
     return apiCall<Order[]>(`/orders/recent/${limit}`);
   },
 
-  // Delete old completed orders (31+ days old)
-  deleteOldCompleted: async (orderIds: string[]): Promise<{ message: string; deletedCount: number }> => {
+  getCleanupPreview: async (): Promise<{ count: number }> => {
+    return apiCall<{ count: number }>('/orders/cleanup/preview');
+  },
+
+  cleanupOldCompleted: async (): Promise<{ message: string; deletedCount: number }> => {
     return apiCall<{ message: string; deletedCount: number }>('/orders/cleanup/old-completed', {
       method: 'POST',
-      body: JSON.stringify({ orderIds }),
+      body: JSON.stringify({}),
     });
   },
 
@@ -320,14 +447,31 @@ export const orderAPI = {
 
 // Retailer API functions
 export const retailerAPI = {
-  // Get all retailers with optional filtering
+  getPage: async (params: RetailersPageParams = {}): Promise<PaginatedRetailersResponse> => {
+    const urlParams = new URLSearchParams();
+    if (params.bit && params.bit !== 'all') urlParams.append('bit', params.bit);
+    if (params.search) urlParams.append('search', params.search);
+    if (params.limit !== undefined) urlParams.append('limit', String(params.limit));
+    if (params.skip !== undefined) urlParams.append('skip', String(params.skip));
+
+    const queryString = urlParams.toString();
+    return apiCall<PaginatedRetailersResponse>(`/retailers${queryString ? `?${queryString}` : ''}`);
+  },
+
   getAll: async (bit?: string, search?: string): Promise<Retailer[]> => {
-    const params = new URLSearchParams();
-    if (bit && bit !== 'all') params.append('bit', bit);
-    if (search) params.append('search', search);
-    
-    const queryString = params.toString();
-    return apiCall<Retailer[]>(`/retailers${queryString ? `?${queryString}` : ''}`);
+    const allRetailers: Retailer[] = [];
+    let skip = 0;
+    const limit = 50;
+    let hasMore = true;
+
+    while (hasMore) {
+      const page = await retailerAPI.getPage({ bit, search, limit, skip });
+      allRetailers.push(...page.data);
+      hasMore = page.hasMore;
+      skip += limit;
+    }
+
+    return allRetailers;
   },
 
   // Get retailer by ID

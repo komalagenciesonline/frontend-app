@@ -5,9 +5,12 @@ import React, { useCallback, useState, useRef, useMemo, useEffect } from 'react'
 import { ActivityIndicator, Alert, Dimensions, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
 import Modal from 'react-native-modal';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { api, Retailer } from '../../utils/api';
+import { api, Retailer } from '../../../utils/api';
+import { consumeListDirty } from '../../../utils/listRefresh';
 
 const { height: screenHeight, width: screenWidth } = Dimensions.get('screen');
+const PAGE_SIZE = 10;
+const STALE_TIME_MS = 30000;
 
 // Memoized RetailerCard component to prevent unnecessary re-renders
 const RetailerCard = React.memo(({ 
@@ -31,9 +34,8 @@ const RetailerCard = React.memo(({
         <Text style={styles.retailerName}>{retailer.name}</Text>
       </View>
       
-      {/* Phone, Bit and Action Buttons Row */}
+      {/* Bit and Action Buttons Row */}
       <View style={styles.phoneBitActionsRow}>
-        <Text style={styles.retailerPhone}>{retailer.phone}</Text>
         <View style={styles.bitBadge}>
           <Ionicons name="location-outline" size={16} color="#007AFF" />
           <Text style={styles.bitText}>{retailer.bit}</Text>
@@ -73,17 +75,16 @@ const SearchBar = React.memo(({
   return (
     <View style={styles.searchContainer}>
       <View style={styles.searchBar}>
-        <Ionicons name="search-outline" size={20} color="#666" />
+        <Ionicons name="search-outline" size={18} color="#8E8E93" />
         <TextInput
           ref={searchInputRef}
           style={styles.searchInput}
           placeholder="Search retailers..."
-          placeholderTextColor="#999"
+          placeholderTextColor="#AEAEB2"
           value={searchQuery}
           onChangeText={onSearchChange}
           returnKeyType="search"
           clearButtonMode="while-editing"
-          // Critical props to prevent keyboard dismissal
           blurOnSubmit={false}
           autoCorrect={false}
           autoCapitalize="none"
@@ -94,7 +95,7 @@ const SearchBar = React.memo(({
           style={styles.filterButton}
           onPress={onFilterPress}
         >
-          <Ionicons name="filter-outline" size={20} color="#666" />
+          <Ionicons name="options-outline" size={18} color="#007AFF" />
         </TouchableOpacity>
       </View>
     </View>
@@ -108,7 +109,10 @@ export default function RetailersScreen() {
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
   const [bitsFilter, setBitsFilter] = useState('all');
   const [retailers, setRetailers] = useState<Retailer[]>([]);
+  const [total, setTotal] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   
   // Temporary filter state for modal (not applied until Apply is clicked)
   const [tempBitsFilter, setTempBitsFilter] = useState('all');
@@ -116,9 +120,9 @@ export default function RetailersScreen() {
   // Modal visibility state
   const [isModalVisible, setModalVisible] = useState(false);
 
-  // Refs for cleanup
   const debounceTimeoutRef = useRef<number | null>(null);
   const lastFetchTimeRef = useRef<number | null>(null);
+  const isFetchingRef = useRef(false);
 
   // Debounce search query to reduce re-renders
   useEffect(() => {
@@ -137,16 +141,6 @@ export default function RetailersScreen() {
     };
   }, [searchQuery]);
 
-  // Cleanup timeout on unmount
-  useEffect(() => {
-    return () => {
-      if (debounceTimeoutRef.current) {
-        clearTimeout(debounceTimeoutRef.current);
-      }
-    };
-  }, []);
-
-  // Memoize bits options to prevent re-creation
   const bitsOptions = useMemo(() => [
     { label: 'All Bits', value: 'all' },
     { label: 'Turori', value: 'Turori' },
@@ -159,56 +153,67 @@ export default function RetailersScreen() {
     { label: 'Omerga', value: 'Omerga' },
   ], []);
 
-  // Load retailers data with server-side filtering (no staleness check here)
-  const loadRetailers = useCallback(async () => {
+  const fetchRetailers = useCallback(async (reset: boolean) => {
+    if (isFetchingRef.current) return;
+    if (!reset && (!hasMore || isLoadingMore)) return;
+
+    isFetchingRef.current = true;
+
     try {
-      setIsLoading(true);
-      // Use server-side filtering for bit and search
-      const retailersData = await api.retailers.getAll(
-        bitsFilter === 'all' ? undefined : bitsFilter,
-        debouncedSearchQuery.trim() || undefined
-      );
-      setRetailers(retailersData);
-      lastFetchTimeRef.current = Date.now(); // Mark data as fresh
+      if (reset) {
+        setIsLoading(true);
+      } else {
+        setIsLoadingMore(true);
+      }
+
+      const response = await api.retailers.getPage({
+        bit: bitsFilter === 'all' ? undefined : bitsFilter,
+        search: debouncedSearchQuery.trim() || undefined,
+        limit: PAGE_SIZE,
+        skip: reset ? 0 : retailers.length,
+      });
+
+      setRetailers((prev) => (reset ? response.data : [...prev, ...response.data]));
+      setTotal(response.total);
+      setHasMore(response.hasMore);
+      lastFetchTimeRef.current = Date.now();
     } catch (error) {
       console.error('Error loading retailers:', error);
       Alert.alert('Error', 'Failed to load retailers. Please try again.');
     } finally {
       setIsLoading(false);
+      setIsLoadingMore(false);
+      isFetchingRef.current = false;
     }
+  }, [bitsFilter, debouncedSearchQuery, hasMore, isLoadingMore, retailers.length]);
+
+  useEffect(() => {
+    fetchRetailers(true);
   }, [bitsFilter, debouncedSearchQuery]);
 
-  // Store latest loadRetailers in ref
-  const loadRetailersRef = useRef<(() => Promise<void>) | null>(null);
-  useEffect(() => {
-    loadRetailersRef.current = loadRetailers;
-  }, [loadRetailers]);
-
-  // No client-side filtering needed - server handles it
-  const filteredRetailers = retailers;
-
-  // Load retailers when screen comes into focus (only if data is stale)
   useFocusEffect(
     useCallback(() => {
+      if (consumeListDirty('retailers')) {
+        fetchRetailers(true);
+        return;
+      }
+
       const now = Date.now();
       const lastFetch = lastFetchTimeRef.current;
-      
-      // Only skip if data is fresh (less than 30 seconds old)
-      if (lastFetch !== null && (now - lastFetch) < 30000) {
-        return; // Data is still fresh, skip refetch
+
+      if (lastFetch !== null && (now - lastFetch) < STALE_TIME_MS) {
+        return;
       }
-      
-      // Data is stale or first load, fetch fresh data using ref to avoid dependency issues
-      if (loadRetailersRef.current) {
-        loadRetailersRef.current();
-      }
-    }, []) // Empty deps - use ref to access latest loadRetailers
+
+      fetchRetailers(true);
+    }, [fetchRetailers])
   );
 
-  // Reload when filters change (always reload - filters changed)
-  useEffect(() => {
-    loadRetailers(); // Always reload when filters change
-  }, [bitsFilter, debouncedSearchQuery]);
+  const handleLoadMore = useCallback(() => {
+    if (!isLoading && !isLoadingMore && hasMore) {
+      fetchRetailers(false);
+    }
+  }, [fetchRetailers, isLoading, isLoadingMore, hasMore]);
 
   // Memoized callback functions to prevent unnecessary re-renders
   const handleSearchChange = useCallback((query: string) => {
@@ -217,7 +222,7 @@ export default function RetailersScreen() {
 
   const handleRetailerPress = useCallback((retailer: Retailer) => {
     router.push({
-      pathname: '/orders/new-order',
+      pathname: '/(tabs)/orders/new-order',
       params: { 
         retailerName: retailer.name,
         retailerPhone: retailer.phone,
@@ -228,7 +233,7 @@ export default function RetailersScreen() {
 
   const handleEditRetailer = useCallback((retailer: Retailer) => {
     router.push({
-      pathname: '/retailers/edit-retailer',
+      pathname: '/(tabs)/retailers/edit-retailer',
       params: {
         retailerData: JSON.stringify(retailer)
       }
@@ -250,8 +255,7 @@ export default function RetailersScreen() {
           onPress: async () => {
             try {
               await api.retailers.delete(retailer._id);
-              // Reload retailers after deletion
-              await loadRetailers();
+              await fetchRetailers(true);
               Alert.alert('Success', 'Retailer deleted successfully');
             } catch (error) {
               console.error('Error deleting retailer:', error);
@@ -261,7 +265,7 @@ export default function RetailersScreen() {
         },
       ]
     );
-  }, [loadRetailers]);
+  }, [fetchRetailers]);
 
   // Handle opening filter modal - copy current filter to temp state
   const handleOpenFilterModal = useCallback(() => {
@@ -281,12 +285,12 @@ export default function RetailersScreen() {
   }, []);
 
   const handleAddRetailer = useCallback(() => {
-    router.push('/retailers/new-retailer');
+    router.push('/(tabs)/retailers/new-retailer');
   }, [router]);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
+      <StatusBar barStyle="dark-content" backgroundColor="#F2F4F7" />
       
       {/* Search Bar */}
       <SearchBar 
@@ -295,11 +299,20 @@ export default function RetailersScreen() {
         onFilterPress={handleOpenFilterModal}
       />
 
-      {/* Retailers List */}
-      <ScrollView style={styles.retailersContainer} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.retailersContainer}
+        showsVerticalScrollIndicator={false}
+        onScroll={({ nativeEvent }) => {
+          const { layoutMeasurement, contentOffset, contentSize } = nativeEvent;
+          if (layoutMeasurement.height + contentOffset.y >= contentSize.height - 48) {
+            handleLoadMore();
+          }
+        }}
+        scrollEventThrottle={400}
+      >
         <View style={styles.retailersHeader}>
           <Text style={styles.retailersTitle}>
-            Retailers ({filteredRetailers.length})
+            Retailers ({total})
           </Text>
           <TouchableOpacity 
             style={styles.addButton}
@@ -315,8 +328,8 @@ export default function RetailersScreen() {
               <ActivityIndicator size="large" color="#007AFF" />
               <Text style={styles.loadingText}>Loading retailers...</Text>
             </View>
-          ) : filteredRetailers.length > 0 ? (
-            filteredRetailers.map((retailer) => (
+          ) : retailers.length > 0 ? (
+            retailers.map((retailer) => (
               <RetailerCard 
                 key={retailer._id} 
                 retailer={retailer}
@@ -339,6 +352,11 @@ export default function RetailersScreen() {
                     : 'Add some retailers to get started'
                 }
               </Text>
+            </View>
+          )}
+          {isLoadingMore && (
+            <View style={styles.loadingState}>
+              <ActivityIndicator size="small" color="#007AFF" />
             </View>
           )}
         </View>
@@ -369,7 +387,7 @@ export default function RetailersScreen() {
               onPress={() => setModalVisible(false)}
               style={styles.closeButton}
             >
-              <Ionicons name="close" size={24} color="#666" />
+              <Ionicons name="close" size={20} color="#636366" />
             </TouchableOpacity>
           </View>
           
@@ -421,29 +439,42 @@ export default function RetailersScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#F2F4F7',
   },
   searchContainer: {
     paddingHorizontal: 20,
-    paddingVertical: 15,
-    backgroundColor: '#ffffff',
+    paddingTop: 12,
+    paddingBottom: 8,
+    backgroundColor: '#F2F4F7',
   },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f5f5f5',
-    borderRadius: 25,
-    paddingHorizontal: 15,
-    paddingVertical: 12,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+    borderWidth: 1,
+    borderColor: '#E8ECF0',
+    shadowColor: '#0A1628',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
   },
   searchInput: {
     flex: 1,
-    fontSize: 16,
-    color: '#333',
+    fontSize: 15,
+    color: '#1A1A1A',
     marginLeft: 10,
   },
   filterButton: {
-    padding: 5,
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: '#E8F4FF',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   retailersContainer: {
     flex: 1,
@@ -513,10 +544,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#1a1a1a',
   },
-  retailerPhone: {
-    fontSize: 14,
-    color: '#666666',
-  },
   bitBadge: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -574,13 +601,13 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    backgroundColor: 'rgba(10, 22, 40, 0.55)',
     zIndex: 0,
   },
   modalContent: {
-    backgroundColor: '#ffffff',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
     maxHeight: '80%',
     minHeight: '50%',
     zIndex: 1,
@@ -590,18 +617,23 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 15,
+    paddingVertical: 18,
     paddingHorizontal: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#e5e5ea',
+    borderBottomColor: '#F2F4F7',
   },
   modalTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
+    fontWeight: '700',
+    color: '#0A1628',
   },
   closeButton: {
-    padding: 5,
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: '#F2F4F7',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   modalBody: {
     maxHeight: 400,
@@ -609,13 +641,15 @@ const styles = StyleSheet.create({
     paddingTop: 20,
   },
   filterSection: {
-    marginBottom: 20,
+    marginBottom: 22,
   },
   filterSectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333333',
-    marginBottom: 10,
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#8E8E93',
+    marginBottom: 12,
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
   },
   filterOptions: {
     flexDirection: 'row',
@@ -623,61 +657,59 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   filterOption: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#e5e5ea',
-    backgroundColor: '#ffffff',
+    borderColor: '#E8ECF0',
+    backgroundColor: '#F2F4F7',
   },
   filterOptionSelected: {
-    backgroundColor: '#007AFF',
-    borderColor: '#007AFF',
+    backgroundColor: '#0A1628',
+    borderColor: '#0A1628',
   },
   filterOptionText: {
     fontSize: 14,
-    color: '#666666',
-    fontWeight: '500',
+    color: '#636366',
+    fontWeight: '600',
   },
   filterOptionTextSelected: {
-    color: '#ffffff',
-    fontWeight: '600',
+    color: '#FFFFFF',
   },
   filterActions: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 20,
+    marginTop: 8,
     paddingHorizontal: 20,
     paddingBottom: 20,
+    gap: 12,
   },
   clearButton: {
     flex: 1,
-    paddingVertical: 12,
+    paddingVertical: 14,
     paddingHorizontal: 20,
-    borderRadius: 8,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#e5e5ea',
-    backgroundColor: '#ffffff',
-    marginRight: 10,
+    borderColor: '#E8ECF0',
+    backgroundColor: '#FFFFFF',
   },
   clearButtonText: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
-    color: '#666666',
+    color: '#636366',
     textAlign: 'center',
   },
   applyButton: {
     flex: 1,
-    paddingVertical: 12,
+    paddingVertical: 14,
     paddingHorizontal: 20,
-    borderRadius: 8,
+    borderRadius: 12,
     backgroundColor: '#007AFF',
-    marginLeft: 10,
   },
   applyButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#ffffff',
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#FFFFFF',
     textAlign: 'center',
   },
 });

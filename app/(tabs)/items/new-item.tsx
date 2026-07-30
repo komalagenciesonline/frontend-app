@@ -3,7 +3,8 @@ import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { Alert, Animated, Pressable, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { api, Brand } from '../../utils/api';
+import { api, Brand } from '../../../utils/api';
+import { markListDirty } from '../../../utils/listRefresh';
 
 const ACCENT = "#3D5AFE";
 
@@ -110,7 +111,7 @@ export default function NewItemScreen() {
           {
             text: 'OK',
             onPress: () => {
-              // Navigate back to items screen
+              markListDirty('items');
               router.back();
             }
           }
