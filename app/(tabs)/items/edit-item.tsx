@@ -1,27 +1,50 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { Alert, Platform, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import DropDownPicker from 'react-native-dropdown-picker';
+import { Alert, Animated, Pressable, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { api, Brand, Product } from '../../../utils/api';
 import { markListDirty } from '../../../utils/listRefresh';
 
+const ACCENT = '#3D5AFE';
+
 export default function EditItemScreen() {
   const router = useRouter();
   const { productData } = useLocalSearchParams<{ productData: string }>();
-  
-  // Parse the product data
+
   const product: Product = productData ? JSON.parse(productData) : null;
-  
+
   const [productName, setProductName] = useState(product?.name || '');
-  const [open, setOpen] = useState(false);
+  const [brandDropdownOpen, setBrandDropdownOpen] = useState(false);
   const [selectedBrand, setSelectedBrand] = useState(product?.brandName || '');
   const [brands, setBrands] = useState<Brand[]>([]);
   const [isUpdating, setIsUpdating] = useState(false);
   const [newBrandName, setNewBrandName] = useState('');
 
-  // Load brands on component mount
+  const [brandChevronAnim] = useState(new Animated.Value(0));
+
+  const openBrandDropdown = () => {
+    setBrandDropdownOpen(true);
+    Animated.timing(brandChevronAnim, {
+      toValue: 1,
+      duration: 180,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const closeBrandDropdown = () => {
+    Animated.timing(brandChevronAnim, {
+      toValue: 0,
+      duration: 180,
+      useNativeDriver: true,
+    }).start(() => setBrandDropdownOpen(false));
+  };
+
+  const brandChevronRotate = brandChevronAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '180deg'],
+  });
+
   React.useEffect(() => {
     const loadBrands = async () => {
       try {
@@ -35,19 +58,12 @@ export default function EditItemScreen() {
     loadBrands();
   }, []);
 
-  // Create brand options for dropdown
-  const brandOptions = brands.map(brand => ({
-    label: brand.name,
-    value: brand.name
-  }));
-
   const handleUpdateProduct = async () => {
-    // Validation
     if (!productName.trim()) {
       Alert.alert('Error', 'Please enter product name');
       return;
     }
-    
+
     if (!selectedBrand && !newBrandName.trim()) {
       Alert.alert('Error', 'Please select an existing brand or enter a new brand name');
       return;
@@ -64,15 +80,14 @@ export default function EditItemScreen() {
       let brandToUse: Brand;
 
       if (newBrandName.trim()) {
-        // Create new brand
         const newBrand = await api.brands.create({
           name: newBrandName.trim(),
-          image: 'https://via.placeholder.com/100x100?text=' + encodeURIComponent(newBrandName.trim())
+          image:
+            'https://via.placeholder.com/100x100?text=' + encodeURIComponent(newBrandName.trim()),
         });
         brandToUse = newBrand;
       } else {
-        // Find the selected brand
-        const selectedBrandData = brands.find(brand => brand.name === selectedBrand);
+        const selectedBrandData = brands.find((brand) => brand.name === selectedBrand);
         if (!selectedBrandData) {
           Alert.alert('Error', 'Selected brand not found');
           return;
@@ -97,8 +112,8 @@ export default function EditItemScreen() {
             onPress: () => {
               markListDirty('items');
               router.back();
-            }
-          }
+            },
+          },
         ]
       );
     } catch (error) {
@@ -112,70 +127,95 @@ export default function EditItemScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
-      
-      {/* Header */}
+
       <View style={styles.header}>
-        <TouchableOpacity 
-          style={styles.backButton}
-          onPress={() => router.back()}
-        >
+        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={24} color="#007AFF" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Edit Product</Text>
         <View style={styles.placeholder} />
       </View>
 
-      <ScrollView
-        style={styles.contentContainer}
-        showsVerticalScrollIndicator={false}
-        nestedScrollEnabled
-        keyboardShouldPersistTaps="handled"
-        scrollEnabled={!open}
-      >
-        {/* Form */}
+      <ScrollView style={styles.contentContainer} showsVerticalScrollIndicator={false}>
         <View style={styles.formContainer}>
-          {/* Brand Selection */}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Brand Name *</Text>
-            <View style={styles.dropdownContainer}>
-               <DropDownPicker
-                 open={open}
-                 value={selectedBrand}
-                 items={brandOptions}
-                 setOpen={setOpen}
-                 setValue={setSelectedBrand}
-                 placeholder=""
-                 style={styles.dropdownPicker}
-                 dropDownContainerStyle={styles.dropdownContainerStyle}
-                 textStyle={styles.dropdownText}
-                 arrowIconStyle={styles.arrowIcon}
-                 tickIconStyle={styles.tickIcon}
-                 zIndex={3000}
-                 zIndexInverse={1000}
-                 dropDownDirection="BOTTOM"
-                 closeAfterSelecting={true}
-                 showTickIcon={true}
-                 showArrowIcon={true}
-                 searchable={false}
-                 listMode={Platform.OS === 'android' ? 'MODAL' : 'SCROLLVIEW'}
-                 modalTitle="Select a brand"
-                 modalAnimationType="slide"
-                 maxHeight={300}
-                 scrollViewProps={{
-                   nestedScrollEnabled: true,
-                 }}
-               />
+            <View style={[styles.floatingLabelInputWrap, { position: 'relative' }]}>
+              <Pressable
+                style={[styles.dropdownPicker, styles.inputRow, styles.dropdownPickerEmphasis]}
+                onPress={brandDropdownOpen ? closeBrandDropdown : openBrandDropdown}
+              >
+                <Text style={styles.inputIcon}>🏷️</Text>
+                <Text style={styles.dropdownPickerText}>
+                  {selectedBrand || 'Select Brand'}
+                </Text>
+                <Animated.View
+                  style={{ marginLeft: 8, transform: [{ rotate: brandChevronRotate }] }}
+                >
+                  <Ionicons name="chevron-down" size={18} color={ACCENT} />
+                </Animated.View>
+              </Pressable>
+              {brandDropdownOpen && (
+                <>
+                  <Pressable style={styles.dropdownOverlay} onPress={closeBrandDropdown} />
+                  <Animated.View
+                    style={[
+                      styles.inlineDropdown,
+                      {
+                        opacity: brandChevronAnim,
+                        transform: [
+                          {
+                            translateY: brandChevronAnim.interpolate({
+                              inputRange: [0, 1],
+                              outputRange: [-10, 0],
+                            }),
+                          },
+                        ],
+                      },
+                    ]}
+                  >
+                    <ScrollView
+                      style={styles.dropdownScrollView}
+                      showsVerticalScrollIndicator={false}
+                      nestedScrollEnabled={true}
+                    >
+                      {brands.map((brand) => (
+                        <Pressable
+                          key={brand._id}
+                          style={({ pressed }) => [
+                            styles.inlineDropdownOption,
+                            selectedBrand === brand.name && styles.inlineDropdownOptionSelected,
+                            pressed && { opacity: 0.7 },
+                          ]}
+                          onPress={() => {
+                            setSelectedBrand(brand.name);
+                            closeBrandDropdown();
+                          }}
+                        >
+                          <Text
+                            style={[
+                              styles.inlineDropdownOptionText,
+                              selectedBrand === brand.name &&
+                                styles.inlineDropdownOptionTextSelected,
+                            ]}
+                          >
+                            {brand.name}
+                          </Text>
+                        </Pressable>
+                      ))}
+                    </ScrollView>
+                  </Animated.View>
+                </>
+              )}
             </View>
           </View>
 
-          {/* OR Label */}
           <View style={styles.orContainer}>
             <View style={styles.orLine} />
             <Text style={styles.orText}>OR</Text>
             <View style={styles.orLine} />
           </View>
 
-          {/* New Brand Input */}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>New Brand Name *</Text>
             <TextInput
@@ -188,7 +228,6 @@ export default function EditItemScreen() {
             />
           </View>
 
-          {/* Product Name */}
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Product Name *</Text>
             <TextInput
@@ -203,9 +242,8 @@ export default function EditItemScreen() {
         </View>
       </ScrollView>
 
-      {/* Update Button */}
       <View style={styles.bottomContainer}>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={[styles.updateButton, isUpdating && styles.updateButtonDisabled]}
           onPress={handleUpdateProduct}
           disabled={isUpdating}
@@ -243,7 +281,7 @@ const styles = StyleSheet.create({
     color: '#1a1a1a',
   },
   placeholder: {
-    width: 34, // Same width as back button for centering
+    width: 34,
   },
   contentContainer: {
     flex: 1,
@@ -271,44 +309,100 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e5e5ea',
   },
-  dropdownContainer: {
-    position: 'relative',
-    zIndex: 1000,
+  floatingLabelInputWrap: {
+    marginBottom: 16,
+  },
+  inputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f3f6fa',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e5e5ea',
+    marginBottom: 2,
+  },
+  inputIcon: {
+    marginLeft: 12,
+    marginRight: 8,
+    fontSize: 18,
   },
   dropdownPicker: {
-    backgroundColor: '#ffffff',
-    borderColor: '#e5e5ea',
-    borderWidth: 1,
+    backgroundColor: '#f3f6fa',
     borderRadius: 12,
-    minHeight: 50,
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    marginBottom: 4,
+    borderWidth: 1,
+    borderColor: '#e5e5ea',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
-  dropdownContainerStyle: {
-    backgroundColor: '#ffffff',
-    borderColor: '#e5e5ea',
-    borderWidth: 1,
-    borderRadius: 12,
-    marginTop: 5,
-    elevation: 8,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.15,
+  dropdownPickerText: {
+    color: '#1a1a1a',
+    fontSize: 15,
+    fontWeight: '500',
+    flex: 1,
+  },
+  dropdownPickerEmphasis: {
+    borderWidth: 1.5,
+    borderColor: ACCENT,
+    shadowColor: ACCENT,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
     shadowRadius: 8,
+    elevation: 4,
   },
-  dropdownText: {
+  inlineDropdown: {
+    position: 'absolute',
+    top: '100%',
+    left: 0,
+    right: 0,
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    marginTop: 4,
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.07,
+    shadowRadius: 6,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: '#e5e5ea',
+    zIndex: 1000,
+  },
+  inlineDropdownOption: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    marginHorizontal: 4,
+    marginVertical: 2,
+  },
+  inlineDropdownOptionSelected: {
+    backgroundColor: ACCENT,
+  },
+  inlineDropdownOptionText: {
+    color: '#1a1a1a',
     fontSize: 16,
     fontWeight: '500',
-    color: '#1a1a1a',
+    textAlign: 'center',
   },
-  arrowIcon: {
-    width: 16,
-    height: 16,
+  inlineDropdownOptionTextSelected: {
+    color: '#fff',
+    fontWeight: '700',
   },
-  tickIcon: {
-    width: 16,
-    height: 16,
+  dropdownOverlay: {
+    position: 'absolute',
+    top: -1000,
+    left: -1000,
+    right: -1000,
+    bottom: -1000,
+    backgroundColor: 'transparent',
+    zIndex: 999,
+  },
+  dropdownScrollView: {
+    maxHeight: 200,
   },
   orContainer: {
     flexDirection: 'row',
