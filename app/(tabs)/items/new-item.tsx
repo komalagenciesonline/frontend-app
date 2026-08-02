@@ -83,7 +83,6 @@ export default function NewItemScreen() {
         // Create new brand
         const newBrand = await api.brands.create({
           name: newBrandName.trim(),
-          image: 'https://via.placeholder.com/100x100?text=' + encodeURIComponent(newBrandName.trim())
         });
         brandToUse = newBrand;
       } else {

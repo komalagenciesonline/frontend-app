@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, FlatList, Image, Modal, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, FlatList, Modal, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import DraggableFlatList, { RenderItemParams } from 'react-native-draggable-flatlist';
 import { api, Brand, Product } from '../../../utils/api';
@@ -528,8 +528,7 @@ export default function NewOrderScreen() {
           color={isActive ? "#007AFF" : "#999"} 
         />
       </TouchableOpacity>
-      
-      <Image source={{ uri: brand.image }} style={styles.brandImage} />
+
       <View style={styles.brandInfo}>
         <Text style={styles.brandName}>{brand.name}</Text>
         <Text style={styles.productCount}>{brand.productCount} Products</Text>
@@ -858,12 +857,6 @@ const styles = StyleSheet.create({
     marginRight: 8,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  brandImage: {
-    width: 60,
-    height: 40,
-    borderRadius: 8,
-    marginRight: 16,
   },
   brandInfo: {
     flex: 1,

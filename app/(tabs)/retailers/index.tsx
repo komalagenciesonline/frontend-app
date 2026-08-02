@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import React, { useCallback, useState, useRef, useMemo, useEffect } from 'react';
-import { ActivityIndicator, Alert, Dimensions, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
+import { ActivityIndicator, Alert, Dimensions, RefreshControl, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
 import Modal from 'react-native-modal';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { api, Retailer } from '../../../utils/api';
@@ -113,6 +113,7 @@ export default function RetailersScreen() {
   const [hasMore, setHasMore] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   
   // Temporary filter state for modal (not applied until Apply is clicked)
   const [tempBitsFilter, setTempBitsFilter] = useState('all');
@@ -153,16 +154,16 @@ export default function RetailersScreen() {
     { label: 'Omerga', value: 'Omerga' },
   ], []);
 
-  const fetchRetailers = useCallback(async (reset: boolean) => {
+  const fetchRetailers = useCallback(async (reset: boolean, suppressLoading = false) => {
     if (isFetchingRef.current) return;
     if (!reset && (!hasMore || isLoadingMore)) return;
 
     isFetchingRef.current = true;
 
     try {
-      if (reset) {
+      if (reset && !suppressLoading) {
         setIsLoading(true);
-      } else {
+      } else if (!reset) {
         setIsLoadingMore(true);
       }
 
@@ -214,6 +215,12 @@ export default function RetailersScreen() {
       fetchRetailers(false);
     }
   }, [fetchRetailers, isLoading, isLoadingMore, hasMore]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await fetchRetailers(true, true);
+    setRefreshing(false);
+  }, [fetchRetailers]);
 
   // Memoized callback functions to prevent unnecessary re-renders
   const handleSearchChange = useCallback((query: string) => {
@@ -302,6 +309,14 @@ export default function RetailersScreen() {
       <ScrollView
         style={styles.retailersContainer}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={['#007AFF']}
+            tintColor="#007AFF"
+          />
+        }
         onScroll={({ nativeEvent }) => {
           const { layoutMeasurement, contentOffset, contentSize } = nativeEvent;
           if (layoutMeasurement.height + contentOffset.y >= contentSize.height - 48) {

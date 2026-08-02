@@ -113,7 +113,14 @@ export default function NewRetailerScreen() {
         <View style={styles.placeholder} />
       </View>
 
-      <ScrollView style={styles.contentContainer} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.contentContainer}
+        showsVerticalScrollIndicator={false}
+        nestedScrollEnabled
+        keyboardShouldPersistTaps="handled"
+        scrollEnabled={!bitDropdownOpen}
+        contentContainerStyle={bitDropdownOpen ? styles.scrollContentDropdownOpen : undefined}
+      >
         <View style={styles.formContainer}>
           <View style={styles.inputGroup}>
             <Text style={styles.label}>Retailer Name *</Text>
@@ -157,7 +164,6 @@ export default function NewRetailerScreen() {
               </Pressable>
               {bitDropdownOpen && (
                 <>
-                  <Pressable style={styles.dropdownOverlay} onPress={closeBitDropdown} />
                   <Animated.View
                     style={[
                       styles.inlineDropdown,
@@ -176,8 +182,9 @@ export default function NewRetailerScreen() {
                   >
                     <ScrollView
                       style={styles.dropdownScrollView}
-                      showsVerticalScrollIndicator={false}
+                      showsVerticalScrollIndicator={true}
                       nestedScrollEnabled={true}
+                      keyboardShouldPersistTaps="handled"
                     >
                       {BITS.map((bit) => (
                         <Pressable
@@ -204,6 +211,7 @@ export default function NewRetailerScreen() {
                       ))}
                     </ScrollView>
                   </Animated.View>
+                  <Pressable style={styles.dropdownOverlay} onPress={closeBitDropdown} />
                 </>
               )}
             </View>
@@ -255,6 +263,9 @@ const styles = StyleSheet.create({
   contentContainer: {
     flex: 1,
     paddingHorizontal: 20,
+  },
+  scrollContentDropdownOpen: {
+    paddingBottom: 220,
   },
   formContainer: {
     paddingTop: 30,
@@ -368,7 +379,7 @@ const styles = StyleSheet.create({
     right: -1000,
     bottom: -1000,
     backgroundColor: 'transparent',
-    zIndex: 999,
+    zIndex: 998,
   },
   dropdownScrollView: {
     maxHeight: 200,

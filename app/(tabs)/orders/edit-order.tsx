@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Image, Modal, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Modal, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { api, Brand, Order, OrderItem, Product } from '../../../utils/api';
 import { markListDirty } from '../../../utils/listRefresh';
@@ -489,7 +489,6 @@ export default function EditOrderScreen() {
       style={styles.brandCard}
       onPress={() => handleBrandPress(brand)}
     >
-      <Image source={{ uri: brand.image }} style={styles.brandImage} />
       <View style={styles.brandInfo}>
         <Text style={styles.brandName}>{brand.name}</Text>
         <Text style={styles.productCount}>{getBrandProductCount(brand._id)} Products</Text>
@@ -1026,12 +1025,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 3.84,
     elevation: 5,
-  },
-  brandImage: {
-    width: 60,
-    height: 40,
-    borderRadius: 8,
-    marginRight: 16,
   },
   brandInfo: {
     flex: 1,

@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import React, { useCallback, useState, useRef } from 'react';
-import { ActivityIndicator, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, RefreshControl, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { api, DashboardStats, Order } from '../../utils/api';
 
@@ -21,38 +21,45 @@ export default function DashboardScreen() {
   const [recentOrders, setRecentOrders] = useState<Order[]>([]);
   const [stats, setStats] = useState<DashboardStats>(EMPTY_STATS);
   const [isLoading, setIsLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   const lastFetchTimeRef = useRef<number | null>(null);
 
+  const loadDashboard = useCallback(async (force = false) => {
+    const now = Date.now();
+    const lastFetch = lastFetchTimeRef.current;
+
+    if (!force && lastFetch !== null && (now - lastFetch) < STALE_TIME_MS) {
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      const [statsData, recentData] = await Promise.all([
+        api.orders.getDashboardStats(),
+        api.orders.getRecent(3),
+      ]);
+      setStats(statsData);
+      setRecentOrders(recentData);
+      lastFetchTimeRef.current = now;
+    } catch (error) {
+      console.error('Error loading dashboard:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
   useFocusEffect(
     useCallback(() => {
-      const loadDashboard = async () => {
-        const now = Date.now();
-        const lastFetch = lastFetchTimeRef.current;
-
-        if (lastFetch !== null && (now - lastFetch) < STALE_TIME_MS) {
-          return;
-        }
-
-        try {
-          setIsLoading(true);
-          const [statsData, recentData] = await Promise.all([
-            api.orders.getDashboardStats(),
-            api.orders.getRecent(3),
-          ]);
-          setStats(statsData);
-          setRecentOrders(recentData);
-          lastFetchTimeRef.current = now;
-        } catch (error) {
-          console.error('Error loading dashboard:', error);
-        } finally {
-          setIsLoading(false);
-        }
-      };
-
       loadDashboard();
-    }, [])
+    }, [loadDashboard])
   );
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await loadDashboard(true);
+    setRefreshing(false);
+  }, [loadDashboard]);
 
   const completedOrders = stats.totalOrders - stats.pendingOrders;
 
@@ -96,7 +103,17 @@ export default function DashboardScreen() {
     <SafeAreaView style={styles.container} edges={['top']}>
       <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
       
-      <ScrollView style={styles.scrollContainer}>
+      <ScrollView
+        style={styles.scrollContainer}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={['#007AFF']}
+            tintColor="#007AFF"
+          />
+        }
+      >
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Dashboard</Text>
           <Text style={styles.headerSubtitle}>Welcome to Komal Agencies</Text>
