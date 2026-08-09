@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Modal, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { api, Brand, Order, OrderItem, Product } from '../../../utils/api';
@@ -111,7 +111,7 @@ export default function EditOrderScreen() {
     });
   };
 
-  const handleUpdateQuantity = (productId: string, unit: 'Pc' | 'Outer' | 'Case', newQuantity: number) => {
+  const handleUpdateQuantity = useCallback((productId: string, unit: 'Pc' | 'Outer' | 'Case', newQuantity: number) => {
     setOrderItems(prevItems => {
       const updatedItems = prevItems.map(item => {
         if (item.productId === productId && item.unit === unit) {
@@ -123,9 +123,9 @@ export default function EditOrderScreen() {
       // Remove items with quantity 0
       return updatedItems.filter(item => item.quantity > 0);
     });
-  };
+  }, []);
 
-  const handleUpdateNotes = (productId: string, unit: 'Pc' | 'Outer' | 'Case', productNotes: string) => {
+  const handleUpdateNotes = useCallback((productId: string, unit: 'Pc' | 'Outer' | 'Case', productNotes: string) => {
     setOrderItems(prevItems => {
       return prevItems.map(item => {
         if (item.productId === productId && item.unit === unit) {
@@ -134,13 +134,18 @@ export default function EditOrderScreen() {
         return item;
       });
     });
-  };
+  }, []);
 
-  const handleRemoveItem = (productId: string, unit: 'Pc' | 'Outer' | 'Case') => {
+  const handleRemoveItem = useCallback((productId: string, unit: 'Pc' | 'Outer' | 'Case') => {
     setOrderItems(prevItems => 
       prevItems.filter(item => !(item.productId === productId && item.unit === unit))
     );
-  };
+  }, []);
+
+  const navigateToOrdersList = useCallback(() => {
+    markListDirty('orders');
+    router.dismissTo('/(tabs)/orders');
+  }, [router]);
 
   const getTotalItems = () => {
     return orderItems.reduce((total, item) => total + item.quantity, 0);
@@ -226,10 +231,7 @@ export default function EditOrderScreen() {
                 [
                   {
                     text: 'OK',
-                    onPress: () => {
-                      markListDirty('orders');
-                      router.back();
-                    }
+                    onPress: navigateToOrdersList,
                   }
                 ]
               );
@@ -422,67 +424,6 @@ export default function EditOrderScreen() {
       </Modal>
     );
   };
-
-  const OrderItemCard = ({ item }: { item: OrderItem }) => (
-    <View style={styles.orderItemCard}>
-      {/* Product Info Section */}
-      <View style={styles.orderItemInfo}>
-        <Text style={styles.orderItemName}>{item.productName}</Text>
-        <Text style={styles.orderItemBrand}>{item.brandName} • {item.unit}</Text>
-      </View>
-      
-      {/* Controls Section: Quantity and Delete */}
-      <View style={styles.orderItemControls}>
-        <View style={styles.quantityControls}>
-          <TouchableOpacity
-            style={styles.quantityButton}
-            onPress={() => handleUpdateQuantity(item.productId, item.unit, item.quantity - 1)}
-          >
-            <Ionicons name="remove" size={16} color="#8B5CF6" />
-          </TouchableOpacity>
-          <TextInput
-            style={styles.quantityTextInput}
-            value={item.quantity.toString()}
-            onChangeText={(text) => {
-              const numericValue = parseInt(text) || 0;
-              handleUpdateQuantity(item.productId, item.unit, Math.max(0, numericValue));
-            }}
-            keyboardType="numeric"
-            selectTextOnFocus
-            maxLength={6}
-          />
-          <TouchableOpacity
-            style={styles.quantityButton}
-            onPress={() => handleUpdateQuantity(item.productId, item.unit, item.quantity + 1)}
-          >
-            <Ionicons name="add" size={16} color="#8B5CF6" />
-          </TouchableOpacity>
-        </View>
-        
-        <TouchableOpacity 
-          style={styles.removeButton}
-          onPress={() => handleRemoveItem(item.productId, item.unit)}
-        >
-          <Ionicons name="trash-outline" size={16} color="#FF3B30" />
-        </TouchableOpacity>
-      </View>
-      
-      {/* Notes Section */}
-      <View style={styles.orderItemNotesSection}>
-        <Text style={styles.notesLabel}>Notes (Optional)</Text>
-        <TextInput
-          style={styles.notesInput}
-          placeholder="Add notes for this product..."
-          placeholderTextColor="#999"
-          value={item.productNotes || ''}
-          onChangeText={(text) => handleUpdateNotes(item.productId, item.unit, text)}
-          multiline
-          numberOfLines={2}
-          maxLength={500}
-        />
-      </View>
-    </View>
-  );
 
   const BrandCard = ({ brand }: { brand: Brand }) => (
     <TouchableOpacity 
@@ -730,8 +671,14 @@ export default function EditOrderScreen() {
         </View>
         
         <View style={styles.orderItemsList}>
-          {orderItems.map((item, index) => (
-            <OrderItemCard key={`${item.productId}-${item.unit}-${index}`} item={item} />
+          {orderItems.map((item) => (
+            <OrderItemCard
+              key={`${item.productId}-${item.unit}`}
+              item={item}
+              onUpdateQuantity={handleUpdateQuantity}
+              onUpdateNotes={handleUpdateNotes}
+              onRemoveItem={handleRemoveItem}
+            />
           ))}
         </View>
 
@@ -1277,4 +1224,76 @@ const styles = StyleSheet.create({
     color: '#007AFF',
     fontWeight: 'bold',
   },
+});
+
+type OrderItemCardProps = {
+  item: OrderItem;
+  onUpdateQuantity: (productId: string, unit: 'Pc' | 'Outer' | 'Case', quantity: number) => void;
+  onUpdateNotes: (productId: string, unit: 'Pc' | 'Outer' | 'Case', productNotes: string) => void;
+  onRemoveItem: (productId: string, unit: 'Pc' | 'Outer' | 'Case') => void;
+};
+
+const OrderItemCard = React.memo(function OrderItemCard({
+  item,
+  onUpdateQuantity,
+  onUpdateNotes,
+  onRemoveItem,
+}: OrderItemCardProps) {
+  return (
+    <View style={styles.orderItemCard}>
+      <View style={styles.orderItemInfo}>
+        <Text style={styles.orderItemName}>{item.productName}</Text>
+        <Text style={styles.orderItemBrand}>{item.brandName} • {item.unit}</Text>
+      </View>
+
+      <View style={styles.orderItemControls}>
+        <View style={styles.quantityControls}>
+          <TouchableOpacity
+            style={styles.quantityButton}
+            onPress={() => onUpdateQuantity(item.productId, item.unit, item.quantity - 1)}
+          >
+            <Ionicons name="remove" size={16} color="#8B5CF6" />
+          </TouchableOpacity>
+          <TextInput
+            style={styles.quantityTextInput}
+            value={item.quantity.toString()}
+            onChangeText={(text) => {
+              const numericValue = parseInt(text) || 0;
+              onUpdateQuantity(item.productId, item.unit, Math.max(0, numericValue));
+            }}
+            keyboardType="numeric"
+            selectTextOnFocus
+            maxLength={6}
+          />
+          <TouchableOpacity
+            style={styles.quantityButton}
+            onPress={() => onUpdateQuantity(item.productId, item.unit, item.quantity + 1)}
+          >
+            <Ionicons name="add" size={16} color="#8B5CF6" />
+          </TouchableOpacity>
+        </View>
+
+        <TouchableOpacity
+          style={styles.removeButton}
+          onPress={() => onRemoveItem(item.productId, item.unit)}
+        >
+          <Ionicons name="trash-outline" size={16} color="#FF3B30" />
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.orderItemNotesSection}>
+        <Text style={styles.notesLabel}>Notes (Optional)</Text>
+        <TextInput
+          style={styles.notesInput}
+          placeholder="Add notes for this product..."
+          placeholderTextColor="#999"
+          value={item.productNotes || ''}
+          onChangeText={(text) => onUpdateNotes(item.productId, item.unit, text)}
+          multiline
+          numberOfLines={2}
+          maxLength={500}
+        />
+      </View>
+    </View>
+  );
 });
