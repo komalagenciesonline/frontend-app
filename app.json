@@ -7,7 +7,6 @@
     "icon": "./assets/images/icon.png",
     "scheme": "komal-agencies",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
     "description": "Komal Agencies - A comprehensive business management app for handling items, orders, and retailer operations.",
     "privacy": "public",
     "githubUrl": "https://github.com/yourusername/komal-agencies",
@@ -21,7 +20,6 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true,
       "package": "com.komalagencies.app",
       "versionCode": 1
     },
