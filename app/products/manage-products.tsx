@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import DraggableFlatList, { RenderItemParams } from 'react-native-draggable-flatlist';
 import { api, Brand, Product } from '../../utils/api';
 import { markListDirty } from '../../utils/listRefresh';
+import { colors, fonts } from '../../constants/theme';
 
 export default function ManageProductsScreen() {
   const router = useRouter();
@@ -79,7 +80,7 @@ export default function ManageProductsScreen() {
         <Ionicons 
           name="reorder-three-outline" 
           size={24} 
-          color={isActive ? "#007AFF" : "#999"} 
+          color={isActive ? colors.brand : colors.inkFaint} 
         />
       </TouchableOpacity>
       
@@ -89,14 +90,14 @@ export default function ManageProductsScreen() {
       </View>
       
       {!isActive && (
-        <Ionicons name="chevron-forward" size={20} color="#666" />
+        <Ionicons name="chevron-forward" size={20} color={colors.inkMuted} />
       )}
     </TouchableOpacity>
   );
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
+      <StatusBar barStyle="dark-content" backgroundColor={colors.surface} />
       
       {/* Header */}
       <View style={styles.header}>
@@ -104,7 +105,7 @@ export default function ManageProductsScreen() {
           style={styles.backButton}
           onPress={() => router.back()}
         >
-          <Ionicons name="arrow-back" size={24} color="#007AFF" />
+          <Ionicons name="arrow-back" size={24} color={colors.brand} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Manage Products</Text>
         <View style={styles.placeholder} />
@@ -131,7 +132,7 @@ export default function ManageProductsScreen() {
         
         {isLoading ? (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#007AFF" />
+            <ActivityIndicator size="large" color={colors.brand} />
             <Text style={styles.loadingText}>Loading products...</Text>
           </View>
         ) : products.length > 0 ? (
@@ -152,7 +153,7 @@ export default function ManageProductsScreen() {
           />
         ) : (
           <View style={styles.emptyState}>
-            <Ionicons name="cube-outline" size={64} color="#ccc" />
+            <Ionicons name="cube-outline" size={64} color={colors.line} />
             <Text style={styles.emptyText}>No products found</Text>
             <Text style={styles.emptySubtext}>
               Add some products to this brand to get started
@@ -167,7 +168,7 @@ export default function ManageProductsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: colors.bg,
   },
   header: {
     flexDirection: 'row',
@@ -175,39 +176,41 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingVertical: 15,
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: '#e5e5ea',
+    borderBottomColor: colors.line,
   },
   backButton: {
     padding: 5,
   },
   headerTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
+    fontFamily: fonts.display,
+    color: colors.ink,
     flex: 1,
     textAlign: 'center',
   },
   placeholder: {
+    fontFamily: fonts.sansMedium,
     width: 34, // Same width as back button for centering
   },
   brandInfo: {
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.surface,
     paddingHorizontal: 20,
     paddingVertical: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#e5e5ea',
+    borderBottomColor: colors.line,
   },
   brandName: {
     fontSize: 24,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
+    fontFamily: fonts.display,
+    color: colors.ink,
     marginBottom: 4,
   },
   productCount: {
     fontSize: 16,
-    color: '#666666',
+    fontFamily: fonts.sansMedium,
+    color: colors.inkMuted,
   },
   productsContainer: {
     flex: 1,
@@ -221,13 +224,13 @@ const styles = StyleSheet.create({
   },
   productsTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
+    fontFamily: fonts.display,
+    color: colors.ink,
   },
   dragHint: {
     fontSize: 14,
-    color: '#007AFF',
-    fontWeight: '500',
+    fontFamily: fonts.sansMedium,
+    color: colors.brand,
   },
   loadingContainer: {
     alignItems: 'center',
@@ -236,24 +239,19 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 16,
-    color: '#666666',
+    fontFamily: fonts.sansMedium,
+    color: colors.inkMuted,
   },
   productsList: {
     paddingBottom: 20,
   },
   productCard: {
-    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 16,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 5,
+    marginBottom: 12,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
@@ -267,7 +265,7 @@ const styles = StyleSheet.create({
   dragHandle: {
     padding: 8,
     borderRadius: 8,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: colors.surfaceMuted,
   },
   productInfo: {
     flex: 1,
@@ -275,12 +273,13 @@ const styles = StyleSheet.create({
   },
   productName: {
     fontSize: 16,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
+    fontFamily: fonts.sansBold,
+    color: colors.ink,
   },
   productBrand: {
     fontSize: 14,
-    color: '#666666',
+    fontFamily: fonts.sansMedium,
+    color: colors.inkMuted,
   },
   emptyState: {
     alignItems: 'center',
@@ -288,13 +287,14 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 18,
-    fontWeight: '600',
-    color: '#666666',
+    fontFamily: fonts.sansSemi,
+    color: colors.inkMuted,
     marginTop: 16,
   },
   emptySubtext: {
     fontSize: 14,
-    color: '#999999',
+    fontFamily: fonts.sans,
+    color: colors.inkFaint,
     marginTop: 4,
     textAlign: 'center',
   },

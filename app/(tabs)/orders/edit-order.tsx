@@ -5,6 +5,7 @@ import { ActivityIndicator, Alert, Modal, ScrollView, StatusBar, StyleSheet, Tex
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { api, Brand, Order, OrderItem, Product } from '../../../utils/api';
 import { markListDirty } from '../../../utils/listRefresh';
+import { colors, fonts } from '../../../constants/theme';
 
 export default function EditOrderScreen() {
   const router = useRouter();
@@ -309,7 +310,7 @@ export default function EditOrderScreen() {
           {/* Header */}
           <View style={styles.modalHeader}>
             <TouchableOpacity onPress={() => setIsModalVisible(false)}>
-              <Ionicons name="close" size={24} color="#666" />
+              <Ionicons name="close" size={24} color={colors.inkMuted} />
             </TouchableOpacity>
             <Text style={styles.modalTitle}>Products</Text>
             <TouchableOpacity onPress={handleAddSelected}>
@@ -321,7 +322,7 @@ export default function EditOrderScreen() {
           <View style={styles.categoryHeader}>
             <Text style={styles.categoryTitle}>{selectedBrand?.name}</Text>
             <TouchableOpacity onPress={() => setIsModalVisible(false)}>
-              <Ionicons name="close" size={24} color="#666" />
+              <Ionicons name="close" size={24} color={colors.inkMuted} />
             </TouchableOpacity>
           </View>
 
@@ -370,7 +371,7 @@ export default function EditOrderScreen() {
                         <Ionicons 
                           name="remove" 
                           size={16} 
-                          color={(productSelections[product._id]?.quantity || 0) > 0 ? "#ffffff" : "#8B5CF6"} 
+                          color={(productSelections[product._id]?.quantity || 0) > 0 ? colors.white : colors.brand} 
                         />
                       </TouchableOpacity>
                       <TextInput
@@ -387,7 +388,7 @@ export default function EditOrderScreen() {
                         selectTextOnFocus
                         maxLength={6}
                         placeholder="0"
-                        placeholderTextColor="#8B5CF6"
+                        placeholderTextColor={colors.brand}
                       />
                       <TouchableOpacity
                         style={styles.quantityButton}
@@ -396,7 +397,7 @@ export default function EditOrderScreen() {
                         <Ionicons 
                           name="add" 
                           size={16} 
-                          color={(productSelections[product._id]?.quantity || 0) > 0 ? "#ffffff" : "#8B5CF6"} 
+                          color={(productSelections[product._id]?.quantity || 0) > 0 ? colors.white : colors.brand} 
                         />
                       </TouchableOpacity>
                     </View>
@@ -409,7 +410,7 @@ export default function EditOrderScreen() {
                   <TextInput
                     style={styles.notesInput}
                     placeholder="Add notes for this product..."
-                    placeholderTextColor="#999"
+                    placeholderTextColor={colors.inkFaint}
                     value={productSelections[product._id]?.productNotes || ''}
                     onChangeText={(text) => handleNotesChange(product._id, text)}
                     multiline
@@ -434,7 +435,7 @@ export default function EditOrderScreen() {
         <Text style={styles.brandName}>{brand.name}</Text>
         <Text style={styles.productCount}>{getBrandProductCount(brand._id)} Products</Text>
       </View>
-      <Ionicons name="chevron-forward" size={20} color="#666" />
+      <Ionicons name="chevron-forward" size={20} color={colors.inkMuted} />
     </TouchableOpacity>
   );
 
@@ -506,7 +507,7 @@ export default function EditOrderScreen() {
           {/* Header */}
           <View style={styles.datePickerHeader}>
             <TouchableOpacity onPress={() => setIsDatePickerVisible(false)}>
-              <Ionicons name="close" size={24} color="#666" />
+              <Ionicons name="close" size={24} color={colors.inkMuted} />
             </TouchableOpacity>
             <Text style={styles.datePickerTitle}>Select Date</Text>
             <TouchableOpacity onPress={() => {
@@ -522,13 +523,13 @@ export default function EditOrderScreen() {
             {/* Month Navigation */}
             <View style={styles.monthNavigation}>
               <TouchableOpacity onPress={() => navigateMonth('prev')}>
-                <Ionicons name="chevron-back" size={24} color="#007AFF" />
+                <Ionicons name="chevron-back" size={24} color={colors.brand} />
               </TouchableOpacity>
               <Text style={styles.monthYear}>
                 {monthNames[selectedDate.getMonth()]} {selectedDate.getFullYear()}
               </Text>
               <TouchableOpacity onPress={() => navigateMonth('next')}>
-                <Ionicons name="chevron-forward" size={24} color="#007AFF" />
+                <Ionicons name="chevron-forward" size={24} color={colors.brand} />
               </TouchableOpacity>
             </View>
 
@@ -586,7 +587,7 @@ export default function EditOrderScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
+      <StatusBar barStyle="dark-content" backgroundColor={colors.surface} />
       
       {/* Header */}
       <View style={styles.header}>
@@ -594,7 +595,7 @@ export default function EditOrderScreen() {
           style={styles.backButton}
           onPress={() => router.back()}
         >
-          <Ionicons name="arrow-back" size={24} color="#007AFF" />
+          <Ionicons name="arrow-back" size={24} color={colors.brand} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Edit Order</Text>
         <View style={styles.headerActions}>
@@ -624,19 +625,19 @@ export default function EditOrderScreen() {
         
         <View style={styles.retailerInfo}>
           <View style={styles.infoRow}>
-            <Ionicons name="storefront-outline" size={20} color="#007AFF" />
+            <Ionicons name="storefront-outline" size={20} color={colors.brand} />
             <Text style={styles.infoLabel}>Retailer Name:</Text>
             <Text style={styles.infoValue}>{order.counterName}</Text>
           </View>
           
           <View style={styles.infoRow}>
-            <Ionicons name="call-outline" size={20} color="#007AFF" />
+            <Ionicons name="call-outline" size={20} color={colors.brand} />
             <Text style={styles.infoLabel}>Phone No:</Text>
             <Text style={styles.infoValue}>+91 9876543210</Text>
           </View>
           
           <View style={styles.infoRow}>
-            <Ionicons name="location-outline" size={20} color="#007AFF" />
+            <Ionicons name="location-outline" size={20} color={colors.brand} />
             <Text style={styles.infoLabel}>Bit:</Text>
             <Text style={styles.infoValue}>{order.bit}</Text>
           </View>
@@ -650,7 +651,7 @@ export default function EditOrderScreen() {
           onPress={() => setIsDatePickerVisible(true)}
         >
           <View style={styles.datePickerContent}>
-            <Ionicons name="calendar-outline" size={20} color="#007AFF" />
+            <Ionicons name="calendar-outline" size={20} color={colors.brand} />
             <Text style={styles.datePickerText}>
               {selectedDate.toLocaleDateString('en-US', {
                 weekday: 'long',
@@ -659,7 +660,7 @@ export default function EditOrderScreen() {
                 day: 'numeric'
               })}
             </Text>
-            <Ionicons name="chevron-forward" size={20} color="#666" />
+            <Ionicons name="chevron-forward" size={20} color={colors.inkMuted} />
           </View>
         </TouchableOpacity>
       </View>
@@ -688,7 +689,7 @@ export default function EditOrderScreen() {
           <Text style={styles.brandsTitle}>Available Brands</Text>
           {isLoading ? (
             <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color="#007AFF" />
+              <ActivityIndicator size="large" color={colors.brand} />
               <Text style={styles.loadingText}>Loading brands...</Text>
             </View>
           ) : (
@@ -705,7 +706,7 @@ export default function EditOrderScreen() {
       {orderItems.length > 0 && (
         <View style={styles.bottomSummary}>
           <View style={styles.summaryContent}>
-            <Ionicons name="cube-outline" size={20} color="#007AFF" />
+            <Ionicons name="cube-outline" size={20} color={colors.brand} />
             <Text style={styles.summaryText}>
               Total Items: {getTotalItems()} Updated
             </Text>
@@ -722,7 +723,7 @@ export default function EditOrderScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: colors.bg,
   },
   loadingContainer: {
     flex: 1,
@@ -731,7 +732,8 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 16,
-    color: '#666',
+    fontFamily: fonts.sansMedium,
+    color: colors.inkMuted,
   },
   header: {
     flexDirection: 'row',
@@ -739,9 +741,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingVertical: 15,
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: '#e5e5ea',
+    borderBottomColor: colors.line,
   },
   headerActions: {
     flexDirection: 'row',
@@ -752,43 +754,37 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 6,
-    backgroundColor: '#4CAF50',
+    backgroundColor: colors.success,
   },
   completeButtonText: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#ffffff',
+    fontFamily: fonts.sansSemi,
+    color: colors.white,
   },
   backButton: {
     padding: 5,
   },
   headerTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
+    fontFamily: fonts.display,
+    color: colors.ink,
   },
   saveButton: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#007AFF',
+    fontFamily: fonts.sansSemi,
+    color: colors.brand,
   },
   saveButtonDisabled: {
-    color: '#cccccc',
+    color: colors.lineStrong,
   },
   orderInfoSection: {
-    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.surface,
     marginHorizontal: 20,
     marginTop: 20,
     borderRadius: 16,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 5,
+    padding: 20,
   },
   orderInfoHeader: {
     flexDirection: 'row',
@@ -798,13 +794,13 @@ const styles = StyleSheet.create({
   },
   orderInfoTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
+    fontFamily: fonts.display,
+    color: colors.ink,
   },
   orderNumber: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#007AFF',
+    fontFamily: fonts.sansSemi,
+    color: colors.brand,
   },
   retailerInfo: {
     gap: 12,
@@ -816,13 +812,14 @@ const styles = StyleSheet.create({
   },
   infoLabel: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#666',
+    fontFamily: fonts.sansSemi,
+    color: colors.inkMuted,
     minWidth: 100,
   },
   infoValue: {
     fontSize: 14,
-    color: '#1a1a1a',
+    fontFamily: fonts.sansBold,
+    color: colors.ink,
     flex: 1,
   },
   contentContainer: {
@@ -834,38 +831,33 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
+    fontFamily: fonts.display,
+    color: colors.ink,
   },
   orderItemsList: {
     gap: 12,
     marginBottom: 20,
   },
   orderItemCard: {
-    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.surface,
     borderRadius: 12,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 5,
+    padding: 16,
   },
   orderItemInfo: {
     marginBottom: 12,
   },
   orderItemName: {
     fontSize: 16,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
+    fontFamily: fonts.sansBold,
+    color: colors.ink,
     marginBottom: 4,
   },
   orderItemBrand: {
     fontSize: 14,
-    color: '#666666',
+    fontFamily: fonts.sans,
+    color: colors.inkMuted,
   },
   orderItemControls: {
     flexDirection: 'row',
@@ -876,10 +868,10 @@ const styles = StyleSheet.create({
   quantityControls: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.surface,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#8B5CF6',
+    borderColor: colors.brand,
     paddingHorizontal: 4,
     paddingVertical: 2,
     minWidth: 100,
@@ -891,16 +883,16 @@ const styles = StyleSheet.create({
   },
   quantityText: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#8B5CF6',
+    fontFamily: fonts.sansBold,
+    color: colors.brand,
     paddingHorizontal: 12,
     minWidth: 30,
     textAlign: 'center',
   },
   quantityTextInput: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#8B5CF6',
+    fontFamily: fonts.sansSemi,
+    color: colors.brand,
     paddingHorizontal: 8,
     minWidth: 50,
     textAlign: 'center',
@@ -912,86 +904,83 @@ const styles = StyleSheet.create({
   },
   notesLabel: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#374151',
+    fontFamily: fonts.sansSemi,
+    color: colors.inkMuted,
     marginBottom: 6,
   },
   notesInput: {
-    backgroundColor: '#F9FAFB',
+    backgroundColor: colors.surfaceMuted,
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 14,
-    color: '#1F2937',
+    fontFamily: fonts.sansMedium,
+    color: colors.ink,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: colors.line,
     textAlignVertical: 'top',
     minHeight: 60,
   },
   notesDisplayContainer: {
     marginTop: 8,
     padding: 8,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: colors.bg,
     borderRadius: 6,
     borderLeftWidth: 3,
-    borderLeftColor: '#007AFF',
+    borderLeftColor: colors.brand,
   },
   notesDisplayText: {
     fontSize: 13,
-    color: '#374151',
+    fontFamily: fonts.sans,
+    color: colors.inkMuted,
     lineHeight: 18,
   },
   removeButton: {
     padding: 8,
     borderRadius: 8,
-    backgroundColor: '#FFF5F5',
+    backgroundColor: colors.dangerSoft,
   },
   brandsSection: {
     marginBottom: 20,
   },
   brandsTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
+    fontFamily: fonts.display,
+    color: colors.ink,
     marginBottom: 15,
   },
   brandsList: {
     gap: 12,
   },
   brandCard: {
-    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 16,
     flexDirection: 'row',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 5,
+    alignItems: 'center',
   },
   brandInfo: {
     flex: 1,
   },
   brandName: {
     fontSize: 16,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
+    fontFamily: fonts.display,
+    color: colors.ink,
     marginBottom: 4,
   },
   productCount: {
     fontSize: 14,
-    color: '#666666',
+    fontFamily: fonts.sansMedium,
+    color: colors.inkMuted,
   },
   bottomSummary: {
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.surface,
     paddingHorizontal: 20,
     paddingVertical: 15,
     borderTopWidth: 1,
-    borderTopColor: '#e5e5ea',
+    borderTopColor: colors.line,
   },
   summaryContent: {
     flexDirection: 'row',
@@ -1000,14 +989,14 @@ const styles = StyleSheet.create({
   },
   summaryText: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#007AFF',
+    fontFamily: fonts.sansSemi,
+    color: colors.brand,
     marginLeft: 8,
   },
   // Modal Styles (same as new-order.tsx)
   modalContainer: {
     flex: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.surface,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -1015,17 +1004,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingVertical: 15,
-    backgroundColor: '#8B5CF6',
+    backgroundColor: colors.brand,
   },
   modalTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#ffffff',
+    fontFamily: fonts.display,
+    color: colors.white,
   },
   addButton: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#ffffff',
+    fontFamily: fonts.sansSemi,
+    color: colors.white,
   },
   categoryHeader: {
     flexDirection: 'row',
@@ -1033,27 +1022,27 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingVertical: 16,
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.surface,
   },
   categoryTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#8B5CF6',
+    fontFamily: fonts.display,
+    color: colors.brand,
   },
   modalContent: {
     flex: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.surface,
   },
   productItem: {
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomColor: colors.surfaceMuted,
   },
   productName: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#1F2937',
+    fontFamily: fonts.sansBold,
+    color: colors.ink,
     marginBottom: 12,
   },
   productControls: {
@@ -1069,33 +1058,33 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.surfaceMuted,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: colors.line,
   },
   unitButtonSelected: {
-    backgroundColor: '#8B5CF6',
-    borderColor: '#8B5CF6',
+    backgroundColor: colors.brand,
+    borderColor: colors.brand,
   },
   unitText: {
     fontSize: 14,
-    fontWeight: '500',
-    color: '#6B7280',
+    fontFamily: fonts.sansSemi,
+    color: colors.inkMuted,
   },
   unitTextSelected: {
-    color: '#ffffff',
-    fontWeight: '600',
+    fontFamily: fonts.sansSemi,
+    color: colors.white,
   },
   quantitySection: {
     alignItems: 'center',
   },
   quantityControlsSelected: {
-    backgroundColor: '#8B5CF6',
+    backgroundColor: colors.brand,
   },
   quantityInput: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#8B5CF6',
+    fontFamily: fonts.sansSemi,
+    color: colors.brand,
     paddingHorizontal: 8,
     minWidth: 40,
     textAlign: 'center',
@@ -1103,29 +1092,29 @@ const styles = StyleSheet.create({
     borderWidth: 0,
   },
   quantityInputSelected: {
-    color: '#ffffff',
+    color: colors.white,
   },
   quantityTextSelected: {
-    color: '#ffffff',
-    fontWeight: '600',
+    fontFamily: fonts.sansSemi,
+    color: colors.white,
   },
   // Date Picker Styles
   datePickerSection: {
     paddingHorizontal: 20,
     paddingVertical: 15,
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: '#e5e5ea',
+    borderBottomColor: colors.line,
   },
   datePickerButton: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#f8f9fa',
+    backgroundColor: colors.bg,
     borderRadius: 12,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#e5e5ea',
+    borderColor: colors.line,
   },
   datePickerContent: {
     flexDirection: 'row',
@@ -1134,14 +1123,14 @@ const styles = StyleSheet.create({
   },
   datePickerText: {
     fontSize: 16,
-    color: '#1a1a1a',
-    marginLeft: 12,
-    fontWeight: '500',
+    fontFamily: fonts.sansMedium,
+    color: colors.ink,
+    marginLeft: 12,
   },
   // Date Picker Modal Styles
   datePickerContainer: {
     flex: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.surface,
   },
   datePickerHeader: {
     flexDirection: 'row',
@@ -1149,19 +1138,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingVertical: 15,
-    backgroundColor: '#007AFF',
+    backgroundColor: colors.brand,
     borderBottomWidth: 1,
-    borderBottomColor: '#e5e5ea',
+    borderBottomColor: colors.line,
   },
   datePickerTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#ffffff',
+    fontFamily: fonts.display,
+    color: colors.white,
   },
   todayButton: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#ffffff',
+    fontFamily: fonts.sansSemi,
+    color: colors.white,
   },
   calendarContainer: {
     flex: 1,
@@ -1175,8 +1164,8 @@ const styles = StyleSheet.create({
   },
   monthYear: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
+    fontFamily: fonts.display,
+    color: colors.ink,
   },
   dayNamesRow: {
     flexDirection: 'row',
@@ -1185,8 +1174,8 @@ const styles = StyleSheet.create({
   },
   dayName: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#666666',
+    fontFamily: fonts.sansSemi,
+    color: colors.inkMuted,
     width: 40,
     textAlign: 'center',
   },
@@ -1204,25 +1193,25 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   selectedDay: {
-    backgroundColor: '#007AFF',
+    backgroundColor: colors.brand,
   },
   todayDay: {
-    backgroundColor: '#f0f8ff',
+    backgroundColor: colors.brandSoft,
     borderWidth: 1,
-    borderColor: '#007AFF',
+    borderColor: colors.brand,
   },
   dayText: {
     fontSize: 16,
-    color: '#1a1a1a',
-    fontWeight: '500',
+    fontFamily: fonts.sansMedium,
+    color: colors.ink,
   },
   selectedDayText: {
-    color: '#ffffff',
-    fontWeight: 'bold',
+    fontFamily: fonts.sansBold,
+    color: colors.white,
   },
   todayDayText: {
-    color: '#007AFF',
-    fontWeight: 'bold',
+    fontFamily: fonts.sansBold,
+    color: colors.brand,
   },
 });
 
@@ -1252,7 +1241,7 @@ const OrderItemCard = React.memo(function OrderItemCard({
             style={styles.quantityButton}
             onPress={() => onUpdateQuantity(item.productId, item.unit, item.quantity - 1)}
           >
-            <Ionicons name="remove" size={16} color="#8B5CF6" />
+            <Ionicons name="remove" size={16} color={colors.brand} />
           </TouchableOpacity>
           <TextInput
             style={styles.quantityTextInput}
@@ -1269,7 +1258,7 @@ const OrderItemCard = React.memo(function OrderItemCard({
             style={styles.quantityButton}
             onPress={() => onUpdateQuantity(item.productId, item.unit, item.quantity + 1)}
           >
-            <Ionicons name="add" size={16} color="#8B5CF6" />
+            <Ionicons name="add" size={16} color={colors.brand} />
           </TouchableOpacity>
         </View>
 
@@ -1277,7 +1266,7 @@ const OrderItemCard = React.memo(function OrderItemCard({
           style={styles.removeButton}
           onPress={() => onRemoveItem(item.productId, item.unit)}
         >
-          <Ionicons name="trash-outline" size={16} color="#FF3B30" />
+          <Ionicons name="trash-outline" size={16} color={colors.danger} />
         </TouchableOpacity>
       </View>
 
@@ -1286,7 +1275,7 @@ const OrderItemCard = React.memo(function OrderItemCard({
         <TextInput
           style={styles.notesInput}
           placeholder="Add notes for this product..."
-          placeholderTextColor="#999"
+          placeholderTextColor={colors.inkFaint}
           value={item.productNotes || ''}
           onChangeText={(text) => onUpdateNotes(item.productId, item.unit, text)}
           multiline

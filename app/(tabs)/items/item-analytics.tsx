@@ -4,8 +4,8 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Animated, Pressable, RefreshControl, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { api, Brand, PendingOrderItem, PendingOrderItemsResponse } from '../../../utils/api';
+import { colors, fonts, radii, shadow } from '../../../constants/theme';
 
-const ACCENT = "#3D5AFE";
 
 interface UnitSectionProps {
   title: string;
@@ -166,7 +166,7 @@ export default function ItemAnalyticsScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
+      <StatusBar barStyle="dark-content" backgroundColor={colors.surface} />
       
       {/* Header */}
       <View style={styles.header}>
@@ -174,7 +174,7 @@ export default function ItemAnalyticsScreen() {
           style={styles.backButton}
           onPress={() => router.back()}
         >
-          <Ionicons name="arrow-back" size={24} color="#007AFF" />
+          <Ionicons name="arrow-back" size={24} color={colors.brand} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Pending Order Items</Text>
         <View style={styles.headerSpacer} />
@@ -182,7 +182,7 @@ export default function ItemAnalyticsScreen() {
 
       {isLoading ? (
         <View style={styles.loadingState}>
-          <ActivityIndicator size="large" color="#007AFF" />
+          <ActivityIndicator size="large" color={colors.brand} />
           <Text style={styles.loadingText}>Loading pending items...</Text>
         </View>
       ) : data ? (
@@ -202,7 +202,7 @@ export default function ItemAnalyticsScreen() {
                     {selectedBrand === 'all' ? 'All Brands' : selectedBrand}
                   </Text>
                   <Animated.View style={{ marginLeft: 8, transform: [{ rotate: brandChevronRotate }] }}>
-                    <Ionicons name="chevron-down" size={18} color={ACCENT} />
+                    <Ionicons name="chevron-down" size={18} color={colors.brand} />
                   </Animated.View>
                 </Pressable>
                 {brandDropdownOpen && (
@@ -286,7 +286,7 @@ export default function ItemAnalyticsScreen() {
                     {bitsOptions.find(b => b.value === selectedBit)?.label || 'All Bits'}
                   </Text>
                   <Animated.View style={{ marginLeft: 8, transform: [{ rotate: bitChevronRotate }] }}>
-                    <Ionicons name="chevron-down" size={18} color={ACCENT} />
+                    <Ionicons name="chevron-down" size={18} color={colors.brand} />
                   </Animated.View>
                 </Pressable>
                 {bitDropdownOpen && (
@@ -350,7 +350,7 @@ export default function ItemAnalyticsScreen() {
                 Pieces (Pc)
               </Text>
               {activeTab === 'Pc' && (
-                <View style={[styles.tabIndicator, { backgroundColor: '#007AFF' }]} />
+                <View style={[styles.tabIndicator, { backgroundColor: colors.brand }]} />
               )}
             </TouchableOpacity>
             <TouchableOpacity
@@ -361,7 +361,7 @@ export default function ItemAnalyticsScreen() {
                 Outer
               </Text>
               {activeTab === 'Outer' && (
-                <View style={[styles.tabIndicator, { backgroundColor: '#34C759' }]} />
+                <View style={[styles.tabIndicator, { backgroundColor: colors.success }]} />
               )}
             </TouchableOpacity>
             <TouchableOpacity
@@ -372,7 +372,7 @@ export default function ItemAnalyticsScreen() {
                 Case
               </Text>
               {activeTab === 'Case' && (
-                <View style={[styles.tabIndicator, { backgroundColor: '#FF9500' }]} />
+                <View style={[styles.tabIndicator, { backgroundColor: colors.warning }]} />
               )}
             </TouchableOpacity>
           </View>
@@ -385,8 +385,8 @@ export default function ItemAnalyticsScreen() {
               <RefreshControl
                 refreshing={refreshing}
                 onRefresh={onRefresh}
-                colors={['#007AFF']}
-                tintColor="#007AFF"
+                colors={[colors.brand]}
+                tintColor={colors.brand}
               />
             }
           >
@@ -396,7 +396,7 @@ export default function ItemAnalyticsScreen() {
                 items={data.items.Pc}
                 total={data.totals.Pc}
                 icon="cube-outline"
-                color="#007AFF"
+                color={colors.brand}
               />
             )}
             {activeTab === 'Outer' && (
@@ -405,7 +405,7 @@ export default function ItemAnalyticsScreen() {
                 items={data.items.Outer}
                 total={data.totals.Outer}
                 icon="cube-outline"
-                color="#34C759"
+                color={colors.success}
               />
             )}
             {activeTab === 'Case' && (
@@ -414,14 +414,14 @@ export default function ItemAnalyticsScreen() {
                 items={data.items.Case}
                 total={data.totals.Case}
                 icon="cube-outline"
-                color="#FF9500"
+                color={colors.warning}
               />
             )}
           </ScrollView>
         </>
       ) : (
         <View style={styles.emptyState}>
-          <Ionicons name="cube-outline" size={64} color="#ccc" />
+          <Ionicons name="cube-outline" size={64} color={colors.inkFaint} />
           <Text style={styles.emptyText}>No pending orders</Text>
           <Text style={styles.emptySubtext}>All orders have been completed</Text>
         </View>
@@ -433,24 +433,24 @@ export default function ItemAnalyticsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: colors.bg,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingVertical: 15,
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: '#e5e5ea',
+    borderBottomColor: colors.line,
   },
   backButton: {
     padding: 8,
   },
   headerTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
+    fontFamily: fonts.display,
+    color: colors.ink,
     marginLeft: 12,
   },
   headerSpacer: {
@@ -467,14 +467,15 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 16,
-    color: '#666666',
+    fontFamily: fonts.sans,
+    color: colors.inkMuted,
   },
   filtersContainer: {
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.surface,
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#e5e5ea',
+    borderBottomColor: colors.line,
     gap: 16,
   },
   filterGroup: {
@@ -482,8 +483,8 @@ const styles = StyleSheet.create({
   },
   filterLabel: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#1a1a1a',
+    fontFamily: fonts.sansSemi,
+    color: colors.ink,
   },
   floatingLabelInputWrap: {
     marginBottom: 0,
@@ -491,39 +492,40 @@ const styles = StyleSheet.create({
   inputRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f3f6fa',
+    backgroundColor: colors.surfaceMuted,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#e5e5ea',
+    borderColor: colors.line,
     marginBottom: 2,
   },
   inputIcon: {
     marginLeft: 12,
     marginRight: 8,
     fontSize: 18,
+    fontFamily: fonts.sans,
   },
   dropdownPicker: {
-    backgroundColor: '#f3f6fa',
+    backgroundColor: colors.surfaceMuted,
     borderRadius: 12,
     paddingVertical: 14,
     paddingHorizontal: 16,
     marginBottom: 4,
     borderWidth: 1,
-    borderColor: '#e5e5ea',
+    borderColor: colors.line,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
   dropdownPickerText: {
-    color: '#1a1a1a',
+    color: colors.ink,
     fontSize: 15,
-    fontWeight: '500',
+    fontFamily: fonts.sansMedium,
     flex: 1,
   },
   dropdownPickerEmphasis: {
     borderWidth: 1.5,
-    borderColor: ACCENT,
-    shadowColor: ACCENT,
+    borderColor: colors.brand,
+    shadowColor: colors.brand,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
     shadowRadius: 8,
@@ -534,18 +536,14 @@ const styles = StyleSheet.create({
     top: '100%',
     left: 0,
     right: 0,
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
+    backgroundColor: colors.surface,
+    borderRadius: radii.lg,
+    ...shadow.card,
     marginTop: 4,
     paddingVertical: 8,
     paddingHorizontal: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.07,
-    shadowRadius: 6,
-    elevation: 2,
     borderWidth: 1,
-    borderColor: '#e5e5ea',
+    borderColor: colors.line,
     zIndex: 1000,
   },
   inlineDropdownOption: {
@@ -556,17 +554,17 @@ const styles = StyleSheet.create({
     marginVertical: 2,
   },
   inlineDropdownOptionSelected: {
-    backgroundColor: ACCENT,
+    backgroundColor: colors.brand,
   },
   inlineDropdownOptionText: {
-    color: '#1a1a1a',
+    color: colors.ink,
     fontSize: 16,
-    fontWeight: '500',
+    fontFamily: fonts.sansMedium,
     textAlign: 'center',
   },
   inlineDropdownOptionTextSelected: {
-    color: '#fff',
-    fontWeight: '700',
+    color: colors.white,
+    fontFamily: fonts.sansBold,
   },
   dropdownOverlay: {
     position: 'absolute',
@@ -582,9 +580,9 @@ const styles = StyleSheet.create({
   },
   tabContainer: {
     flexDirection: 'row',
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: '#e5e5ea',
+    borderBottomColor: colors.line,
   },
   tab: {
     flex: 1,
@@ -594,16 +592,16 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   tabActive: {
-    backgroundColor: '#f8f9fa',
+    backgroundColor: colors.bg,
   },
   tabText: {
     fontSize: 16,
-    fontWeight: '500',
-    color: '#666666',
+    fontFamily: fonts.sansMedium,
+    color: colors.inkMuted,
   },
   tabTextActive: {
-    fontWeight: 'bold',
-    color: '#1a1a1a',
+    fontFamily: fonts.sansBold,
+    color: colors.ink,
   },
   tabIndicator: {
     position: 'absolute',
@@ -621,20 +619,15 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   itemCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
+    backgroundColor: colors.surface,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.line,
+    ...shadow.card,
     padding: 16,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 1,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 3,
   },
   itemInfo: {
     flex: 1,
@@ -642,13 +635,14 @@ const styles = StyleSheet.create({
   },
   itemProductName: {
     fontSize: 16,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
+    fontFamily: fonts.sansBold,
+    color: colors.ink,
     marginBottom: 4,
   },
   itemBrandName: {
     fontSize: 14,
-    color: '#666666',
+    fontFamily: fonts.sans,
+    color: colors.inkMuted,
   },
   itemQuantity: {
     minWidth: 60,
@@ -660,17 +654,18 @@ const styles = StyleSheet.create({
   },
   itemQuantityText: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontFamily: fonts.sansBold,
   },
   emptyUnit: {
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 20,
     alignItems: 'center',
   },
   emptyUnitText: {
     fontSize: 14,
-    color: '#999999',
+    fontFamily: fonts.sans,
+    color: colors.inkFaint,
   },
   emptyState: {
     flex: 1,
@@ -680,13 +675,14 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 18,
-    fontWeight: '600',
-    color: '#666666',
+    fontFamily: fonts.sansSemi,
+    color: colors.inkMuted,
     marginTop: 16,
   },
   emptySubtext: {
     fontSize: 14,
-    color: '#999999',
+    fontFamily: fonts.sans,
+    color: colors.inkFaint,
     marginTop: 4,
     textAlign: 'center',
   },

@@ -6,6 +6,7 @@ import Modal from 'react-native-modal';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { api, Order } from '../../../utils/api';
 import { consumeListDirty } from '../../../utils/listRefresh';
+import { colors, fonts, radii, shadow } from '../../../constants/theme';
 
 const { height: screenHeight, width: screenWidth } = Dimensions.get('screen');
 const PAGE_SIZE = 10;
@@ -56,7 +57,7 @@ const OrderCard = React.memo(({
     {/* Third Row: Bit Name and Action Buttons */}
     <View style={styles.bitAndActionsRow}>
       <View style={styles.bitBadge}>
-        <Ionicons name="location-outline" size={14} color="#007AFF" />
+        <Ionicons name="location-outline" size={14} color={colors.brand} />
         <Text style={styles.bitText}>{order.bit}</Text>
       </View>
       <View style={styles.actionButtons}>
@@ -64,13 +65,13 @@ const OrderCard = React.memo(({
           style={styles.editButton}
           onPress={() => onEdit(order)}
         >
-          <Ionicons name="create-outline" size={18} color="#007AFF" />
+          <Ionicons name="create-outline" size={18} color={colors.brand} />
         </TouchableOpacity>
         <TouchableOpacity 
           style={styles.deleteButton}
           onPress={() => onDelete(order)}
         >
-          <Ionicons name="trash-outline" size={18} color="#FF3B30" />
+          <Ionicons name="trash-outline" size={18} color={colors.danger} />
         </TouchableOpacity>
       </View>
     </View>
@@ -78,7 +79,7 @@ const OrderCard = React.memo(({
     {/* Fourth Row: Date */}
     <View style={styles.itemsAndDateRow}>
       <View style={styles.metaChip}>
-        <Ionicons name="calendar-outline" size={14} color="#8E8E93" />
+        <Ionicons name="calendar-outline" size={14} color={colors.inkMuted} />
         <Text style={styles.metaChipText}>{order.date}</Text>
       </View>
     </View>
@@ -100,12 +101,12 @@ const SearchBar = React.memo(({
   return (
     <View style={styles.searchContainer}>
       <View style={styles.searchBar}>
-        <Ionicons name="search-outline" size={18} color="#8E8E93" />
+        <Ionicons name="search-outline" size={18} color={colors.inkMuted} />
         <TextInput
           ref={searchInputRef}
           style={styles.searchInput}
           placeholder="Search orders by counter name..."
-          placeholderTextColor="#AEAEB2"
+          placeholderTextColor={colors.inkFaint}
           value={searchQuery}
           onChangeText={onSearchChange}
           returnKeyType="search"
@@ -120,7 +121,7 @@ const SearchBar = React.memo(({
           style={styles.filterButton}
           onPress={onFilterPress}
         >
-          <Ionicons name="options-outline" size={18} color="#007AFF" />
+          <Ionicons name="options-outline" size={18} color={colors.brand} />
         </TouchableOpacity>
       </View>
     </View>
@@ -392,7 +393,7 @@ export default function OrdersScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar barStyle="dark-content" backgroundColor="#F2F4F7" />
+      <StatusBar barStyle="dark-content" backgroundColor={colors.bg} />
       
       {/* Search Bar */}
       <SearchBar 
@@ -411,8 +412,8 @@ export default function OrdersScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            colors={['#007AFF']}
-            tintColor="#007AFF"
+            colors={[colors.brand]}
+            tintColor={colors.brand}
           />
         }
         onEndReached={handleLoadMore}
@@ -429,7 +430,7 @@ export default function OrdersScreen() {
               style={styles.cleanupButton}
               onPress={handleCleanupOldOrders}
             >
-              <Ionicons name="brush-outline" size={20} color="#FF9500" />
+              <Ionicons name="brush-outline" size={20} color={colors.warning} />
             </TouchableOpacity>
           </View>
         }
@@ -445,20 +446,20 @@ export default function OrdersScreen() {
         ListFooterComponent={
           isLoadingMore ? (
             <View style={styles.footerLoader}>
-              <ActivityIndicator size="small" color="#007AFF" />
+              <ActivityIndicator size="small" color={colors.brand} />
             </View>
           ) : null
         }
         ListEmptyComponent={
           isLoading ? (
             <View style={styles.loadingState}>
-              <ActivityIndicator size="large" color="#007AFF" />
+              <ActivityIndicator size="large" color={colors.brand} />
               <Text style={styles.loadingText}>Loading orders...</Text>
             </View>
           ) : (
             <View style={styles.emptyState}>
               <View style={styles.emptyIconWrap}>
-                <Ionicons name="receipt-outline" size={32} color="#007AFF" />
+                <Ionicons name="receipt-outline" size={32} color={colors.brand} />
               </View>
               <Text style={styles.emptyText}>
                 {searchQuery.trim() ? 'No Matching Orders' : 'No Orders Found'}
@@ -500,7 +501,7 @@ export default function OrdersScreen() {
               onPress={() => setModalVisible(false)}
               style={styles.closeButton}
             >
-              <Ionicons name="close" size={20} color="#636366" />
+              <Ionicons name="close" size={20} color={colors.inkMuted} />
             </TouchableOpacity>
           </View>
           
@@ -599,40 +600,37 @@ export default function OrdersScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F2F4F7',
+    backgroundColor: colors.bg,
   },
   searchContainer: {
     paddingHorizontal: 20,
     paddingTop: 12,
     paddingBottom: 8,
-    backgroundColor: '#F2F4F7',
+    backgroundColor: colors.bg,
   },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 14,
+    backgroundColor: colors.surface,
+    borderRadius: radii.lg,
+    ...shadow.card,
     paddingHorizontal: 14,
     paddingVertical: 11,
     borderWidth: 1,
-    borderColor: '#E8ECF0',
-    shadowColor: '#0A1628',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    elevation: 2,
+    borderColor: colors.line,
   },
   searchInput: {
     flex: 1,
     fontSize: 15,
-    color: '#1A1A1A',
+    fontFamily: fonts.sans,
+    color: colors.ink,
     marginLeft: 10,
   },
   filterButton: {
     width: 36,
     height: 36,
     borderRadius: 10,
-    backgroundColor: '#E8F4FF',
+    backgroundColor: colors.brandSoft,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -664,39 +662,35 @@ const styles = StyleSheet.create({
   },
   ordersTitle: {
     fontSize: 22,
-    fontWeight: '700',
-    color: '#1A1A1A',
+    fontFamily: fonts.display,
+    color: colors.ink,
   },
   countBadge: {
-    backgroundColor: '#0A1628',
+    backgroundColor: colors.brandDark,
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 10,
   },
   countBadgeText: {
     fontSize: 13,
-    fontWeight: '700',
-    color: '#FFFFFF',
+    fontFamily: fonts.sansBold,
+    color: colors.white,
   },
   cleanupButton: {
     width: 40,
     height: 40,
     borderRadius: 12,
-    backgroundColor: '#FFF4E5',
+    backgroundColor: colors.warningSoft,
     justifyContent: 'center',
     alignItems: 'center',
   },
   orderCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 14,
+    backgroundColor: colors.surface,
+    borderRadius: radii.lg,
+    ...shadow.card,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#EEF1F5',
-    shadowColor: '#0A1628',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 3,
+    borderColor: colors.line,
   },
   orderHeader: {
     flexDirection: 'row',
@@ -727,7 +721,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 10,
-    backgroundColor: '#E8F4FF',
+    backgroundColor: colors.brandSoft,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -735,20 +729,20 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 10,
-    backgroundColor: '#FFF0F0',
+    backgroundColor: colors.dangerSoft,
     justifyContent: 'center',
     alignItems: 'center',
   },
   orderNumber: {
     fontSize: 12,
-    fontWeight: '700',
-    color: '#007AFF',
+    fontFamily: fonts.sansBold,
+    color: colors.brand,
     letterSpacing: 0.3,
   },
   counterName: {
     fontSize: 17,
-    fontWeight: '600',
-    color: '#1A1A1A',
+    fontFamily: fonts.sansSemi,
+    color: colors.ink,
     lineHeight: 22,
   },
   statusBadge: {
@@ -757,25 +751,25 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   statusCompleted: {
-    backgroundColor: '#E8F9EE',
+    backgroundColor: colors.successSoft,
   },
   statusPending: {
-    backgroundColor: '#FFF4E5',
+    backgroundColor: colors.warningSoft,
   },
   statusText: {
     fontSize: 11,
-    fontWeight: '700',
+    fontFamily: fonts.sansBold,
   },
   statusTextCompleted: {
-    color: '#248A3D',
+    color: colors.success,
   },
   statusTextPending: {
-    color: '#C93400',
+    color: colors.accent,
   },
   bitBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#E8F4FF',
+    backgroundColor: colors.brandSoft,
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 8,
@@ -784,14 +778,14 @@ const styles = StyleSheet.create({
   },
   bitText: {
     fontSize: 12,
-    fontWeight: '600',
-    color: '#007AFF',
+    fontFamily: fonts.sansSemi,
+    color: colors.brand,
     flexShrink: 1,
   },
   metaChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F2F4F7',
+    backgroundColor: colors.bg,
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 8,
@@ -799,8 +793,8 @@ const styles = StyleSheet.create({
   },
   metaChipText: {
     fontSize: 12,
-    color: '#636366',
-    fontWeight: '500',
+    color: colors.inkMuted,
+    fontFamily: fonts.sansMedium,
   },
   loadingState: {
     alignItems: 'center',
@@ -809,35 +803,36 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 14,
-    color: '#8E8E93',
-    fontWeight: '500',
+    color: colors.inkMuted,
+    fontFamily: fonts.sansMedium,
   },
   emptyState: {
     alignItems: 'center',
     paddingVertical: 48,
     paddingHorizontal: 24,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 14,
+    backgroundColor: colors.surface,
+    borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: '#EEF1F5',
+    borderColor: colors.line,
   },
   emptyIconWrap: {
     width: 64,
     height: 64,
     borderRadius: 18,
-    backgroundColor: '#E8F4FF',
+    backgroundColor: colors.brandSoft,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 12,
   },
   emptyText: {
     fontSize: 17,
-    fontWeight: '600',
-    color: '#1A1A1A',
+    fontFamily: fonts.sansSemi,
+    color: colors.ink,
   },
   emptySubtext: {
     fontSize: 14,
-    color: '#8E8E93',
+    fontFamily: fonts.sans,
+    color: colors.inkMuted,
     marginTop: 6,
     textAlign: 'center',
     lineHeight: 20,
@@ -853,11 +848,11 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(10, 22, 40, 0.55)',
+    backgroundColor: colors.overlay,
     zIndex: 0,
   },
   modalContent: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     maxHeight: '80%',
@@ -872,18 +867,18 @@ const styles = StyleSheet.create({
     paddingVertical: 18,
     paddingHorizontal: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#F2F4F7',
+    borderBottomColor: colors.bg,
   },
   modalTitle: {
     fontSize: 20,
-    fontWeight: '700',
-    color: '#0A1628',
+    fontFamily: fonts.display,
+    color: colors.ink,
   },
   closeButton: {
     width: 36,
     height: 36,
     borderRadius: 10,
-    backgroundColor: '#F2F4F7',
+    backgroundColor: colors.bg,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -897,8 +892,8 @@ const styles = StyleSheet.create({
   },
   filterSectionTitle: {
     fontSize: 13,
-    fontWeight: '700',
-    color: '#8E8E93',
+    fontFamily: fonts.sansBold,
+    color: colors.inkMuted,
     marginBottom: 12,
     letterSpacing: 0.5,
     textTransform: 'uppercase',
@@ -913,20 +908,20 @@ const styles = StyleSheet.create({
     paddingVertical: 9,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#E8ECF0',
-    backgroundColor: '#F2F4F7',
+    borderColor: colors.line,
+    backgroundColor: colors.bg,
   },
   filterOptionSelected: {
-    backgroundColor: '#0A1628',
-    borderColor: '#0A1628',
+    backgroundColor: colors.brandDark,
+    borderColor: colors.brandDark,
   },
   filterOptionText: {
     fontSize: 14,
-    color: '#636366',
-    fontWeight: '600',
+    color: colors.inkMuted,
+    fontFamily: fonts.sansSemi,
   },
   filterOptionTextSelected: {
-    color: '#FFFFFF',
+    color: colors.white,
   },
   filterActions: {
     flexDirection: 'row',
@@ -942,13 +937,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#E8ECF0',
-    backgroundColor: '#FFFFFF',
+    borderColor: colors.line,
+    backgroundColor: colors.surface,
   },
   clearButtonText: {
     fontSize: 15,
-    fontWeight: '600',
-    color: '#636366',
+    fontFamily: fonts.sansSemi,
+    color: colors.inkMuted,
     textAlign: 'center',
   },
   applyButton: {
@@ -956,12 +951,12 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 20,
     borderRadius: 12,
-    backgroundColor: '#007AFF',
+    backgroundColor: colors.brand,
   },
   applyButtonText: {
     fontSize: 15,
-    fontWeight: '700',
-    color: '#FFFFFF',
+    fontFamily: fonts.sansBold,
+    color: colors.white,
     textAlign: 'center',
   },
 });

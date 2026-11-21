@@ -6,6 +6,7 @@ import Modal from 'react-native-modal';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { api, Retailer } from '../../../utils/api';
 import { consumeListDirty } from '../../../utils/listRefresh';
+import { colors, fonts, radii, shadow } from '../../../constants/theme';
 
 const { height: screenHeight, width: screenWidth } = Dimensions.get('screen');
 const PAGE_SIZE = 10;
@@ -36,7 +37,7 @@ const RetailerCard = React.memo(({
       {/* Bit and Action Buttons Row */}
       <View style={styles.phoneBitActionsRow}>
         <View style={styles.bitBadge}>
-          <Ionicons name="location-outline" size={16} color="#007AFF" />
+          <Ionicons name="location-outline" size={16} color={colors.brand} />
           <Text style={styles.bitText}>{retailer.bit}</Text>
         </View>
         <View style={styles.actionButtons}>
@@ -44,14 +45,14 @@ const RetailerCard = React.memo(({
             style={styles.editButton}
             onPress={() => onEdit(retailer)}
           >
-            <Ionicons name="create-outline" size={20} color="#007AFF" />
+            <Ionicons name="create-outline" size={20} color={colors.brand} />
           </TouchableOpacity>
           
           <TouchableOpacity 
             style={styles.deleteButton}
             onPress={() => onDelete(retailer)}
           >
-            <Ionicons name="trash-outline" size={20} color="#FF3B30" />
+            <Ionicons name="trash-outline" size={20} color={colors.danger} />
           </TouchableOpacity>
         </View>
       </View>
@@ -74,12 +75,12 @@ const SearchBar = React.memo(({
   return (
     <View style={styles.searchContainer}>
       <View style={styles.searchBar}>
-        <Ionicons name="search-outline" size={18} color="#8E8E93" />
+        <Ionicons name="search-outline" size={18} color={colors.inkMuted} />
         <TextInput
           ref={searchInputRef}
           style={styles.searchInput}
           placeholder="Search retailers..."
-          placeholderTextColor="#AEAEB2"
+          placeholderTextColor={colors.inkFaint}
           value={searchQuery}
           onChangeText={onSearchChange}
           returnKeyType="search"
@@ -94,7 +95,7 @@ const SearchBar = React.memo(({
           style={styles.filterButton}
           onPress={onFilterPress}
         >
-          <Ionicons name="options-outline" size={18} color="#007AFF" />
+          <Ionicons name="options-outline" size={18} color={colors.brand} />
         </TouchableOpacity>
       </View>
     </View>
@@ -296,7 +297,7 @@ export default function RetailersScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar barStyle="dark-content" backgroundColor="#F2F4F7" />
+      <StatusBar barStyle="dark-content" backgroundColor={colors.bg} />
       
       {/* Search Bar */}
       <SearchBar 
@@ -312,8 +313,8 @@ export default function RetailersScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            colors={['#007AFF']}
-            tintColor="#007AFF"
+            colors={[colors.brand]}
+            tintColor={colors.brand}
           />
         }
         onScroll={({ nativeEvent }) => {
@@ -332,14 +333,14 @@ export default function RetailersScreen() {
             style={styles.addButton}
             onPress={handleAddRetailer}
           >
-            <Ionicons name="add" size={24} color="#007AFF" />
+            <Ionicons name="add" size={24} color={colors.brand} />
           </TouchableOpacity>
         </View>
         
         <View style={styles.retailersList}>
           {isLoading ? (
             <View style={styles.loadingState}>
-              <ActivityIndicator size="large" color="#007AFF" />
+              <ActivityIndicator size="large" color={colors.brand} />
               <Text style={styles.loadingText}>Loading retailers...</Text>
             </View>
           ) : retailers.length > 0 ? (
@@ -354,7 +355,7 @@ export default function RetailersScreen() {
             ))
           ) : (
             <View style={styles.emptyState}>
-              <Ionicons name="storefront-outline" size={64} color="#ccc" />
+              <Ionicons name="storefront-outline" size={64} color={colors.inkFaint} />
               <Text style={styles.emptyText}>
                 {searchQuery.trim() ? 'No Matching Retailers' : 'No Retailers Found'}
               </Text>
@@ -370,7 +371,7 @@ export default function RetailersScreen() {
           )}
           {isLoadingMore && (
             <View style={styles.loadingState}>
-              <ActivityIndicator size="small" color="#007AFF" />
+              <ActivityIndicator size="small" color={colors.brand} />
             </View>
           )}
         </View>
@@ -401,7 +402,7 @@ export default function RetailersScreen() {
               onPress={() => setModalVisible(false)}
               style={styles.closeButton}
             >
-              <Ionicons name="close" size={20} color="#636366" />
+              <Ionicons name="close" size={20} color={colors.inkMuted} />
             </TouchableOpacity>
           </View>
           
@@ -453,40 +454,37 @@ export default function RetailersScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F2F4F7',
+    backgroundColor: colors.bg,
   },
   searchContainer: {
     paddingHorizontal: 20,
     paddingTop: 12,
     paddingBottom: 8,
-    backgroundColor: '#F2F4F7',
+    backgroundColor: colors.bg,
   },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 14,
+    backgroundColor: colors.surface,
+    borderRadius: radii.lg,
+    ...shadow.card,
     paddingHorizontal: 14,
     paddingVertical: 11,
     borderWidth: 1,
-    borderColor: '#E8ECF0',
-    shadowColor: '#0A1628',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    elevation: 2,
+    borderColor: colors.line,
   },
   searchInput: {
     flex: 1,
     fontSize: 15,
-    color: '#1A1A1A',
+    fontFamily: fonts.sans,
+    color: colors.ink,
     marginLeft: 10,
   },
   filterButton: {
     width: 36,
     height: 36,
     borderRadius: 10,
-    backgroundColor: '#E8F4FF',
+    backgroundColor: colors.brandSoft,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -502,31 +500,26 @@ const styles = StyleSheet.create({
   },
   retailersTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
+    fontFamily: fonts.display,
+    color: colors.ink,
   },
   addButton: {
     padding: 8,
     borderRadius: 20,
-    backgroundColor: '#f0f8ff',
+    backgroundColor: colors.brandSoft,
   },
   retailersList: {
     gap: 12,
     paddingBottom: 20,
   },
   retailerCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
+    backgroundColor: colors.surface,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.line,
+    ...shadow.card,
     flexDirection: 'row',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 5,
   },
   retailerContent: {
     flex: 1,
@@ -541,7 +534,7 @@ const styles = StyleSheet.create({
   editButton: {
     padding: 8,
     borderRadius: 8,
-    backgroundColor: '#F0F8FF',
+    backgroundColor: colors.brandSoft,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -555,13 +548,13 @@ const styles = StyleSheet.create({
   },
   retailerName: {
     fontSize: 16,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
+    fontFamily: fonts.sansBold,
+    color: colors.ink,
   },
   bitBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f0f8ff',
+    backgroundColor: colors.brandSoft,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 12,
@@ -569,13 +562,13 @@ const styles = StyleSheet.create({
   },
   bitText: {
     fontSize: 12,
-    fontWeight: '600',
-    color: '#007AFF',
+    fontFamily: fonts.sansSemi,
+    color: colors.brand,
   },
   deleteButton: {
     padding: 8,
     borderRadius: 8,
-    backgroundColor: '#FFF5F5',
+    backgroundColor: colors.dangerSoft,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -585,13 +578,14 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 18,
-    fontWeight: '600',
-    color: '#666666',
+    fontFamily: fonts.sansSemi,
+    color: colors.inkMuted,
     marginTop: 16,
   },
   emptySubtext: {
     fontSize: 14,
-    color: '#999999',
+    fontFamily: fonts.sans,
+    color: colors.inkFaint,
     marginTop: 4,
     textAlign: 'center',
   },
@@ -602,7 +596,8 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 16,
-    color: '#666666',
+    fontFamily: fonts.sans,
+    color: colors.inkMuted,
   },
   modal: {
     justifyContent: 'flex-end',
@@ -615,11 +610,11 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(10, 22, 40, 0.55)',
+    backgroundColor: colors.overlay,
     zIndex: 0,
   },
   modalContent: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     maxHeight: '80%',
@@ -634,18 +629,18 @@ const styles = StyleSheet.create({
     paddingVertical: 18,
     paddingHorizontal: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#F2F4F7',
+    borderBottomColor: colors.bg,
   },
   modalTitle: {
     fontSize: 20,
-    fontWeight: '700',
-    color: '#0A1628',
+    fontFamily: fonts.display,
+    color: colors.ink,
   },
   closeButton: {
     width: 36,
     height: 36,
     borderRadius: 10,
-    backgroundColor: '#F2F4F7',
+    backgroundColor: colors.bg,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -659,8 +654,8 @@ const styles = StyleSheet.create({
   },
   filterSectionTitle: {
     fontSize: 13,
-    fontWeight: '700',
-    color: '#8E8E93',
+    fontFamily: fonts.sansBold,
+    color: colors.inkMuted,
     marginBottom: 12,
     letterSpacing: 0.5,
     textTransform: 'uppercase',
@@ -675,20 +670,20 @@ const styles = StyleSheet.create({
     paddingVertical: 9,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#E8ECF0',
-    backgroundColor: '#F2F4F7',
+    borderColor: colors.line,
+    backgroundColor: colors.bg,
   },
   filterOptionSelected: {
-    backgroundColor: '#0A1628',
-    borderColor: '#0A1628',
+    backgroundColor: colors.brandDark,
+    borderColor: colors.brandDark,
   },
   filterOptionText: {
     fontSize: 14,
-    color: '#636366',
-    fontWeight: '600',
+    color: colors.inkMuted,
+    fontFamily: fonts.sansSemi,
   },
   filterOptionTextSelected: {
-    color: '#FFFFFF',
+    color: colors.white,
   },
   filterActions: {
     flexDirection: 'row',
@@ -704,13 +699,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#E8ECF0',
-    backgroundColor: '#FFFFFF',
+    borderColor: colors.line,
+    backgroundColor: colors.surface,
   },
   clearButtonText: {
     fontSize: 15,
-    fontWeight: '600',
-    color: '#636366',
+    fontFamily: fonts.sansSemi,
+    color: colors.inkMuted,
     textAlign: 'center',
   },
   applyButton: {
@@ -718,12 +713,12 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 20,
     borderRadius: 12,
-    backgroundColor: '#007AFF',
+    backgroundColor: colors.brand,
   },
   applyButtonText: {
     fontSize: 15,
-    fontWeight: '700',
-    color: '#FFFFFF',
+    fontFamily: fonts.sansBold,
+    color: colors.white,
     textAlign: 'center',
   },
 });

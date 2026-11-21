@@ -5,6 +5,7 @@ import { Alert, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpa
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { api, Brand } from '../../../utils/api';
 import { markListDirty } from '../../../utils/listRefresh';
+import { colors, fonts, radii, shadow } from '../../../constants/theme';
 
 export default function BrandsScreen() {
   const router = useRouter();
@@ -95,11 +96,11 @@ export default function BrandsScreen() {
   const SearchBar = () => (
     <View style={styles.searchContainer}>
       <View style={styles.searchBar}>
-        <Ionicons name="search-outline" size={20} color="#666" />
+        <Ionicons name="search-outline" size={20} color={colors.inkMuted} />
         <TextInput
           style={styles.searchInput}
           placeholder="Search brands..."
-          placeholderTextColor="#999"
+          placeholderTextColor={colors.inkFaint}
           value={searchQuery}
           onChangeText={setSearchQuery}
         />
@@ -111,7 +112,7 @@ export default function BrandsScreen() {
     <View style={styles.brandCard}>
       <View style={styles.brandContent}>
         <View style={styles.brandImageContainer}>
-          <Ionicons name="business-outline" size={24} color="#007AFF" />
+          <Ionicons name="business-outline" size={24} color={colors.brand} />
         </View>
         
         <View style={styles.brandInfo}>
@@ -134,7 +135,7 @@ export default function BrandsScreen() {
               }
             })}
           >
-            <Ionicons name="reorder-three-outline" size={20} color="#007AFF" />
+            <Ionicons name="reorder-three-outline" size={20} color={colors.brand} />
             <Text style={styles.manageButtonText}>Manage</Text>
           </TouchableOpacity>
         )}
@@ -149,7 +150,7 @@ export default function BrandsScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
+      <StatusBar barStyle="dark-content" backgroundColor={colors.surface} />
       
       {/* Header */}
       <View style={styles.header}>
@@ -157,7 +158,7 @@ export default function BrandsScreen() {
           style={styles.backButton}
           onPress={() => router.back()}
         >
-          <Ionicons name="arrow-back" size={24} color="#007AFF" />
+          <Ionicons name="arrow-back" size={24} color={colors.brand} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Brands Management</Text>
         <TouchableOpacity 
@@ -165,7 +166,7 @@ export default function BrandsScreen() {
           onPress={handleBrandCleanup}
           disabled={isCleaningUp}
         >
-          <Ionicons name="trash-outline" size={20} color={isCleaningUp ? "#999" : "#FF3B30"} />
+          <Ionicons name="trash-outline" size={20} color={isCleaningUp ? colors.inkFaint : colors.danger} />
         </TouchableOpacity>
       </View>
 
@@ -191,7 +192,7 @@ export default function BrandsScreen() {
             ))
           ) : (
             <View style={styles.emptyState}>
-              <Ionicons name="business-outline" size={64} color="#ccc" />
+              <Ionicons name="business-outline" size={64} color={colors.inkFaint} />
               <Text style={styles.emptyText}>No brands found</Text>
               <Text style={styles.emptySubtext}>Try adjusting your search</Text>
             </View>
@@ -201,7 +202,7 @@ export default function BrandsScreen() {
         {/* Info Section */}
         <View style={styles.infoSection}>
           <View style={styles.infoCard}>
-            <Ionicons name="information-circle-outline" size={24} color="#007AFF" />
+            <Ionicons name="information-circle-outline" size={24} color={colors.brand} />
             <View style={styles.infoContent}>
               <Text style={styles.infoTitle}>Automatic Brand Cleanup</Text>
               <Text style={styles.infoText}>
@@ -219,7 +220,7 @@ export default function BrandsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: colors.bg,
   },
   header: {
     flexDirection: 'row',
@@ -227,39 +228,39 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingVertical: 15,
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: '#e5e5ea',
+    borderBottomColor: colors.line,
   },
   backButton: {
     padding: 5,
   },
   headerTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
+    fontFamily: fonts.display,
+    color: colors.ink,
     flex: 1,
     textAlign: 'center',
   },
   cleanupButton: {
     padding: 8,
     borderRadius: 8,
-    backgroundColor: '#FFF5F5',
+    backgroundColor: colors.dangerSoft,
     justifyContent: 'center',
     alignItems: 'center',
   },
   cleanupButtonDisabled: {
-    backgroundColor: '#F5F5F5',
+    backgroundColor: colors.surfaceMuted,
   },
   searchContainer: {
     paddingHorizontal: 20,
     paddingVertical: 15,
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.surface,
   },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f5f5f5',
+    backgroundColor: colors.surfaceMuted,
     borderRadius: 25,
     paddingHorizontal: 15,
     paddingVertical: 12,
@@ -267,7 +268,8 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontSize: 16,
-    color: '#333',
+    fontFamily: fonts.sans,
+    color: colors.ink,
     marginLeft: 10,
   },
   brandsContainer: {
@@ -279,25 +281,20 @@ const styles = StyleSheet.create({
   },
   brandsTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
+    fontFamily: fonts.display,
+    color: colors.ink,
   },
   brandsList: {
     gap: 12,
     paddingBottom: 20,
   },
   brandCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
+    backgroundColor: colors.surface,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.line,
+    ...shadow.card,
     padding: 16,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 5,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -312,7 +309,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#f0f8ff',
+    backgroundColor: colors.brandSoft,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -322,12 +319,13 @@ const styles = StyleSheet.create({
   },
   brandName: {
     fontSize: 16,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
+    fontFamily: fonts.sansBold,
+    color: colors.ink,
   },
   productCount: {
     fontSize: 14,
-    color: '#666666',
+    fontFamily: fonts.sans,
+    color: colors.inkMuted,
   },
   brandActions: {
     alignItems: 'flex-end',
@@ -335,7 +333,7 @@ const styles = StyleSheet.create({
   manageButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f0f8ff',
+    backgroundColor: colors.brandSoft,
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 8,
@@ -343,19 +341,19 @@ const styles = StyleSheet.create({
   },
   manageButtonText: {
     fontSize: 12,
-    fontWeight: '600',
-    color: '#007AFF',
+    fontFamily: fonts.sansSemi,
+    color: colors.brand,
   },
   emptyBrandBadge: {
-    backgroundColor: '#FFF5F5',
+    backgroundColor: colors.dangerSoft,
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 8,
   },
   emptyBrandText: {
     fontSize: 12,
-    fontWeight: '600',
-    color: '#FF3B30',
+    fontFamily: fonts.sansSemi,
+    color: colors.danger,
   },
   loadingState: {
     alignItems: 'center',
@@ -363,7 +361,8 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 16,
-    color: '#666666',
+    fontFamily: fonts.sans,
+    color: colors.inkMuted,
   },
   emptyState: {
     alignItems: 'center',
@@ -371,13 +370,14 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 18,
-    fontWeight: '600',
-    color: '#666666',
+    fontFamily: fonts.sansSemi,
+    color: colors.inkMuted,
     marginTop: 16,
   },
   emptySubtext: {
     fontSize: 14,
-    color: '#999999',
+    fontFamily: fonts.sans,
+    color: colors.inkFaint,
     marginTop: 4,
     textAlign: 'center',
   },
@@ -385,14 +385,14 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
   },
   infoCard: {
-    backgroundColor: '#f0f8ff',
+    backgroundColor: colors.brandSoft,
     borderRadius: 12,
     padding: 16,
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 12,
     borderLeftWidth: 4,
-    borderLeftColor: '#007AFF',
+    borderLeftColor: colors.brand,
   },
   infoContent: {
     flex: 1,
@@ -400,12 +400,13 @@ const styles = StyleSheet.create({
   },
   infoTitle: {
     fontSize: 16,
-    fontWeight: 'bold',
-    color: '#007AFF',
+    fontFamily: fonts.sansBold,
+    color: colors.brand,
   },
   infoText: {
     fontSize: 14,
-    color: '#333333',
+    fontFamily: fonts.sans,
+    color: colors.ink,
     lineHeight: 20,
   },
 });

@@ -3,6 +3,7 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import React, { useCallback, useState, useRef } from 'react';
 import { ActivityIndicator, RefreshControl, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { colors, fonts, radii, shadow } from '../../constants/theme';
 import { api, DashboardStats, Order } from '../../utils/api';
 
 const STALE_TIME_MS = 30000;
@@ -66,7 +67,9 @@ export default function DashboardScreen() {
     <View style={[styles.statCard, { borderLeftColor: color }]}>
       <View style={styles.statContent}>
         <View style={styles.statHeader}>
-          <Ionicons name={icon as any} size={24} color={color} />
+          <View style={[styles.statIconWrap, { backgroundColor: `${color}18` }]}>
+            <Ionicons name={icon as any} size={20} color={color} />
+          </View>
           <Text style={styles.statValue}>{value}</Text>
         </View>
         <Text style={styles.statTitle}>{title}</Text>
@@ -80,18 +83,21 @@ export default function DashboardScreen() {
         <Text style={styles.counterName}>{order.counterName}</Text>
         <View style={[
           styles.statusBadge,
-          { backgroundColor: order.status === 'Completed' ? '#4CAF50' : '#FF9800' }
+          { backgroundColor: order.status === 'Completed' ? colors.successSoft : colors.warningSoft }
         ]}>
-          <Text style={styles.statusText}>{order.status}</Text>
+          <Text style={[
+            styles.statusText,
+            { color: order.status === 'Completed' ? colors.success : colors.warning }
+          ]}>{order.status}</Text>
         </View>
       </View>
       <View style={styles.orderDetails}>
         <View style={styles.orderDetailItem}>
-          <Ionicons name="cube-outline" size={16} color="#666" />
+          <Ionicons name="cube-outline" size={16} color={colors.inkMuted} />
           <Text style={styles.orderDetailText}>{order.totalItems} items</Text>
         </View>
         <View style={styles.orderDetailItem}>
-          <Ionicons name="calendar-outline" size={16} color="#666" />
+          <Ionicons name="calendar-outline" size={16} color={colors.inkMuted} />
           <Text style={styles.orderDetailText}>{order.date}</Text>
         </View>
       </View>
@@ -100,7 +106,7 @@ export default function DashboardScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
+      <StatusBar barStyle="dark-content" backgroundColor={colors.surface} />
       
       <ScrollView
         style={styles.scrollContainer}
@@ -108,14 +114,15 @@ export default function DashboardScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            colors={['#007AFF']}
-            tintColor="#007AFF"
+            colors={[colors.brand]}
+            tintColor={colors.brand}
           />
         }
       >
         <View style={styles.header}>
+          <Text style={styles.headerEyebrow}>KOMAL AGENCIES</Text>
           <Text style={styles.headerTitle}>Dashboard</Text>
-          <Text style={styles.headerSubtitle}>Welcome to Komal Agencies</Text>
+          <Text style={styles.headerSubtitle}>Welcome to your trade desk</Text>
         </View>
 
         <View style={styles.statsContainer}>
@@ -123,25 +130,25 @@ export default function DashboardScreen() {
             title="Total Orders"
             value={stats.totalOrders}
             icon="receipt-outline"
-            color="#007AFF"
+            color={colors.brand}
           />
           <StatCard
             title="Completed Orders"
             value={completedOrders}
             icon="checkmark-circle-outline"
-            color="#34C759"
+            color={colors.success}
           />
           <StatCard
             title="Pending Orders"
             value={stats.pendingOrders}
             icon="time-outline"
-            color="#FF9500"
+            color={colors.warning}
           />
           <StatCard
             title="Total Bits"
             value={stats.totalBits}
             icon="location-outline"
-            color="#AF52DE"
+            color={colors.purple}
           />
         </View>
 
@@ -156,7 +163,7 @@ export default function DashboardScreen() {
           <View style={styles.ordersList}>
             {isLoading ? (
               <View style={styles.loadingState}>
-                <ActivityIndicator size="large" color="#007AFF" />
+                <ActivityIndicator size="large" color={colors.brand} />
                 <Text style={styles.loadingText}>Loading dashboard...</Text>
               </View>
             ) : recentOrders.length > 0 ? (
@@ -165,7 +172,7 @@ export default function DashboardScreen() {
               ))
             ) : (
               <View style={styles.emptyState}>
-                <Ionicons name="receipt-outline" size={48} color="#ccc" />
+                <Ionicons name="receipt-outline" size={48} color={colors.inkFaint} />
                 <Text style={styles.emptyText}>No orders yet</Text>
                 <Text style={styles.emptySubtext}>Create your first order to see it here</Text>
               </View>
@@ -180,28 +187,36 @@ export default function DashboardScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: colors.bg,
   },
   scrollContainer: {
     flex: 1,
   },
   header: {
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.surface,
     paddingHorizontal: 20,
-    paddingTop: 15,
-    paddingBottom: 15,
+    paddingTop: 18,
+    paddingBottom: 18,
     borderBottomWidth: 1,
-    borderBottomColor: '#e5e5ea',
+    borderBottomColor: colors.line,
+  },
+  headerEyebrow: {
+    fontFamily: fonts.sansSemi,
+    fontSize: 11,
+    color: colors.brand,
+    letterSpacing: 2,
+    marginBottom: 6,
   },
   headerTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
+    fontSize: 30,
+    fontFamily: fonts.displayExtra,
+    color: colors.ink,
     marginBottom: 4,
   },
   headerSubtitle: {
-    fontSize: 16,
-    color: '#666666',
+    fontSize: 15,
+    fontFamily: fonts.sans,
+    color: colors.inkMuted,
   },
   statsContainer: {
     flexDirection: 'row',
@@ -210,20 +225,15 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   statCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
+    backgroundColor: colors.surface,
+    borderRadius: radii.lg,
     padding: 16,
     marginBottom: 10,
     width: '48%',
     borderLeftWidth: 4,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 5,
+    borderWidth: 1,
+    borderColor: colors.line,
+    ...shadow.card,
   },
   statContent: {
     flex: 1,
@@ -234,15 +244,22 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 8,
   },
+  statIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: radii.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   statValue: {
     fontSize: 24,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
+    fontFamily: fonts.display,
+    color: colors.ink,
   },
   statTitle: {
-    fontSize: 14,
-    color: '#666666',
-    fontWeight: '500',
+    fontSize: 13,
+    color: colors.inkMuted,
+    fontFamily: fonts.sansMedium,
   },
   section: {
     padding: 20,
@@ -255,29 +272,24 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
+    fontFamily: fonts.display,
+    color: colors.ink,
   },
   viewAllText: {
-    fontSize: 16,
-    color: '#007AFF',
-    fontWeight: '500',
+    fontSize: 14,
+    color: colors.brand,
+    fontFamily: fonts.sansSemi,
   },
   ordersList: {
     gap: 12,
   },
   orderCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
+    backgroundColor: colors.surface,
+    borderRadius: radii.lg,
     padding: 16,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 5,
+    borderWidth: 1,
+    borderColor: colors.line,
+    ...shadow.card,
   },
   orderHeader: {
     flexDirection: 'row',
@@ -287,18 +299,19 @@ const styles = StyleSheet.create({
   },
   counterName: {
     fontSize: 16,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
+    fontFamily: fonts.sansBold,
+    color: colors.ink,
+    flex: 1,
+    marginRight: 8,
   },
   statusBadge: {
     paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 12,
+    paddingVertical: 5,
+    borderRadius: radii.sm,
   },
   statusText: {
     fontSize: 12,
-    fontWeight: '600',
-    color: '#ffffff',
+    fontFamily: fonts.sansSemi,
   },
   orderDetails: {
     flexDirection: 'row',
@@ -311,7 +324,8 @@ const styles = StyleSheet.create({
   },
   orderDetailText: {
     fontSize: 14,
-    color: '#666666',
+    fontFamily: fonts.sans,
+    color: colors.inkMuted,
   },
   loadingState: {
     alignItems: 'center',
@@ -319,8 +333,9 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   loadingText: {
-    fontSize: 16,
-    color: '#666666',
+    fontSize: 15,
+    fontFamily: fonts.sansMedium,
+    color: colors.inkMuted,
   },
   emptyState: {
     alignItems: 'center',
@@ -328,13 +343,14 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#666666',
+    fontFamily: fonts.sansSemi,
+    color: colors.inkMuted,
     marginTop: 12,
   },
   emptySubtext: {
     fontSize: 14,
-    color: '#999999',
+    fontFamily: fonts.sans,
+    color: colors.inkFaint,
     marginTop: 4,
     textAlign: 'center',
   },

@@ -5,6 +5,7 @@ import { ActivityIndicator, FlatList, Modal, ScrollView, StatusBar, StyleSheet, 
 import { SafeAreaView } from 'react-native-safe-area-context';
 import DraggableFlatList, { RenderItemParams } from 'react-native-draggable-flatlist';
 import { api, Brand, Product } from '../../../utils/api';
+import { colors, fonts } from '../../../constants/theme';
 
 interface SelectedItem {
   productId: string;
@@ -318,7 +319,7 @@ export default function NewOrderScreen() {
               <Ionicons
                 name="remove"
                 size={16}
-                color={(productSelections[product._id]?.quantity || 0) > 0 ? '#ffffff' : '#8B5CF6'}
+                color={(productSelections[product._id]?.quantity || 0) > 0 ? colors.white : colors.brand}
               />
             </TouchableOpacity>
             <TextInput
@@ -335,7 +336,7 @@ export default function NewOrderScreen() {
               selectTextOnFocus
               maxLength={6}
               placeholder="0"
-              placeholderTextColor="#8B5CF6"
+              placeholderTextColor={colors.brand}
             />
             <TouchableOpacity
               style={styles.quantityButton}
@@ -349,7 +350,7 @@ export default function NewOrderScreen() {
               <Ionicons
                 name="add"
                 size={16}
-                color={(productSelections[product._id]?.quantity || 0) > 0 ? '#ffffff' : '#8B5CF6'}
+                color={(productSelections[product._id]?.quantity || 0) > 0 ? colors.white : colors.brand}
               />
             </TouchableOpacity>
           </View>
@@ -361,7 +362,7 @@ export default function NewOrderScreen() {
         <TextInput
           style={styles.notesInput}
           placeholder="Add notes for this product..."
-          placeholderTextColor="#999"
+          placeholderTextColor={colors.inkFaint}
           value={productSelections[product._id]?.productNotes || ''}
           onChangeText={(text) => handleProductNotesChange(product._id, text)}
           multiline
@@ -440,7 +441,7 @@ export default function NewOrderScreen() {
           {/* Header */}
           <View style={styles.datePickerHeader}>
             <TouchableOpacity onPress={() => setIsDatePickerVisible(false)}>
-              <Ionicons name="close" size={24} color="#666" />
+              <Ionicons name="close" size={24} color={colors.inkMuted} />
             </TouchableOpacity>
             <Text style={styles.datePickerTitle}>Select Date</Text>
             <TouchableOpacity onPress={() => {
@@ -456,13 +457,13 @@ export default function NewOrderScreen() {
             {/* Month Navigation */}
             <View style={styles.monthNavigation}>
               <TouchableOpacity onPress={() => navigateMonth('prev')}>
-                <Ionicons name="chevron-back" size={24} color="#007AFF" />
+                <Ionicons name="chevron-back" size={24} color={colors.brand} />
               </TouchableOpacity>
               <Text style={styles.monthYear}>
                 {monthNames[selectedDate.getMonth()]} {selectedDate.getFullYear()}
               </Text>
               <TouchableOpacity onPress={() => navigateMonth('next')}>
-                <Ionicons name="chevron-forward" size={24} color="#007AFF" />
+                <Ionicons name="chevron-forward" size={24} color={colors.brand} />
               </TouchableOpacity>
             </View>
 
@@ -525,7 +526,7 @@ export default function NewOrderScreen() {
         <Ionicons 
           name="reorder-three-outline" 
           size={24} 
-          color={isActive ? "#007AFF" : "#999"} 
+          color={isActive ? colors.brand : colors.inkFaint} 
         />
       </TouchableOpacity>
 
@@ -535,14 +536,14 @@ export default function NewOrderScreen() {
       </View>
       
       {!isActive && (
-        <Ionicons name="chevron-forward" size={20} color="#666" />
+        <Ionicons name="chevron-forward" size={20} color={colors.inkMuted} />
       )}
     </TouchableOpacity>
   );
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
+      <StatusBar barStyle="dark-content" backgroundColor={colors.surface} />
       
       {/* Header */}
       <View style={styles.header}>
@@ -550,7 +551,7 @@ export default function NewOrderScreen() {
           style={styles.backButton}
           onPress={() => router.back()}
         >
-          <Ionicons name="arrow-back" size={24} color="#007AFF" />
+          <Ionicons name="arrow-back" size={24} color={colors.brand} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>New Order</Text>
         <View style={styles.placeholder} />
@@ -560,7 +561,7 @@ export default function NewOrderScreen() {
       <View style={styles.welcomeSection}>
         <View style={styles.welcomeContent}>
           <View style={styles.welcomeIconContainer}>
-            <Ionicons name="storefront" size={32} color="#007AFF" />
+            <Ionicons name="storefront" size={32} color={colors.brand} />
           </View>
           <View style={styles.welcomeTextContainer}>
             <Text style={styles.welcomeGreeting}>Welcome back!</Text>
@@ -584,7 +585,7 @@ export default function NewOrderScreen() {
           onPress={() => setIsDatePickerVisible(true)}
         >
           <View style={styles.datePickerContent}>
-            <Ionicons name="calendar-outline" size={20} color="#007AFF" />
+            <Ionicons name="calendar-outline" size={20} color={colors.brand} />
             <Text style={styles.datePickerText}>
               {selectedDate.toLocaleDateString('en-US', {
                 weekday: 'long',
@@ -594,7 +595,7 @@ export default function NewOrderScreen() {
               })}
             </Text>
           </View>
-          <Ionicons name="chevron-forward" size={20} color="#666" />
+          <Ionicons name="chevron-forward" size={20} color={colors.inkMuted} />
         </TouchableOpacity>
       </View>
 
@@ -611,7 +612,7 @@ export default function NewOrderScreen() {
         
         {isLoadingBrands ? (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#007AFF" />
+            <ActivityIndicator size="large" color={colors.brand} />
             <Text style={styles.loadingText}>Loading brands...</Text>
           </View>
         ) : (
@@ -638,7 +639,7 @@ export default function NewOrderScreen() {
             ListFooterComponent={
               isLoadingMoreBrands ? (
                 <View style={styles.brandsFooterLoader}>
-                  <ActivityIndicator size="small" color="#007AFF" />
+                  <ActivityIndicator size="small" color={colors.brand} />
                 </View>
               ) : null
             }
@@ -650,12 +651,12 @@ export default function NewOrderScreen() {
       {selectedItems.length > 0 && (
         <TouchableOpacity style={styles.bottomSummary} onPress={handleNavigateToSummary}>
           <View style={styles.summaryContent}>
-            <Ionicons name="cube-outline" size={20} color="#007AFF" />
+            <Ionicons name="cube-outline" size={20} color={colors.brand} />
             <Text style={styles.summaryText}>
               Total Items: {getTotalItems()} Added
             </Text>
           </View>
-          <Ionicons name="chevron-forward" size={20} color="#007AFF" />
+          <Ionicons name="chevron-forward" size={20} color={colors.brand} />
         </TouchableOpacity>
       )}
 
@@ -668,7 +669,7 @@ export default function NewOrderScreen() {
         <SafeAreaView style={styles.modalContainer}>
           <View style={styles.modalHeader}>
             <TouchableOpacity onPress={() => setIsModalVisible(false)}>
-              <Ionicons name="close" size={24} color="#666" />
+              <Ionicons name="close" size={24} color={colors.inkMuted} />
             </TouchableOpacity>
             <Text style={styles.modalTitle}>Products</Text>
             <TouchableOpacity onPress={handleAddSelectedProducts}>
@@ -679,13 +680,13 @@ export default function NewOrderScreen() {
           <View style={styles.categoryHeader}>
             <Text style={styles.categoryTitle}>{selectedBrand?.name}</Text>
             <TouchableOpacity onPress={() => setIsModalVisible(false)}>
-              <Ionicons name="close" size={24} color="#666" />
+              <Ionicons name="close" size={24} color={colors.inkMuted} />
             </TouchableOpacity>
           </View>
 
           {isLoadingProducts && brandProducts.length === 0 ? (
             <View style={styles.modalFullLoading}>
-              <ActivityIndicator size="large" color="#007AFF" />
+              <ActivityIndicator size="large" color={colors.brand} />
               <Text style={styles.loadingText}>Loading products...</Text>
             </View>
           ) : (
@@ -709,14 +710,14 @@ export default function NewOrderScreen() {
               onEndReachedThreshold={0.4}
               ListEmptyComponent={
                 <View style={styles.modalEmptyContainer}>
-                  <Ionicons name="cube-outline" size={48} color="#ccc" />
+                  <Ionicons name="cube-outline" size={48} color={colors.line} />
                   <Text style={styles.modalEmptyText}>No products for this brand</Text>
                 </View>
               }
               ListFooterComponent={
                 isLoadingMoreProducts ? (
                   <View style={styles.modalFooterLoader}>
-                    <ActivityIndicator size="small" color="#007AFF" />
+                    <ActivityIndicator size="small" color={colors.brand} />
                   </View>
                 ) : null
               }
@@ -732,7 +733,7 @@ export default function NewOrderScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: colors.bg,
   },
   header: {
     flexDirection: 'row',
@@ -740,36 +741,31 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingVertical: 15,
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: '#e5e5ea',
+    borderBottomColor: colors.line,
   },
   backButton: {
     padding: 5,
   },
   headerTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
+    fontFamily: fonts.display,
+    color: colors.ink,
   },
   placeholder: {
+    fontFamily: fonts.sansMedium,
     width: 34,
   },
   welcomeSection: {
-    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.surface,
     marginHorizontal: 20,
     marginTop: 20,
     marginBottom: 10,
     borderRadius: 16,
-    padding: 24,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 6,
+    padding: 24,
   },
   welcomeContent: {
     flexDirection: 'row',
@@ -779,7 +775,7 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: '#f0f8ff',
+    backgroundColor: colors.brandSoft,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 16,
@@ -789,21 +785,22 @@ const styles = StyleSheet.create({
   },
   welcomeGreeting: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#007AFF',
+    fontFamily: fonts.sansSemi,
+    color: colors.brand,
     marginBottom: 4,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   welcomeText: {
     fontSize: 24,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
+    fontFamily: fonts.display,
+    color: colors.ink,
     marginBottom: 6,
   },
   subtitleText: {
     fontSize: 15,
-    color: '#666666',
+    fontFamily: fonts.sansMedium,
+    color: colors.inkMuted,
     lineHeight: 20,
   },
   brandsContainer: {
@@ -818,12 +815,13 @@ const styles = StyleSheet.create({
   },
   brandsTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
+    fontFamily: fonts.display,
+    color: colors.ink,
   },
   dragHint: {
     fontSize: 12,
-    color: '#007AFF',
+    fontFamily: fonts.sansMedium,
+    color: colors.brand,
     fontStyle: 'italic',
   },
   brandsList: {
@@ -831,22 +829,16 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
   },
   brandCard: {
-    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 16,
     flexDirection: 'row',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 5,
+    alignItems: 'center',
   },
   brandCardDragging: {
-    backgroundColor: '#f0f8ff',
+    backgroundColor: colors.brandSoft,
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 8,
@@ -863,20 +855,21 @@ const styles = StyleSheet.create({
   },
   brandName: {
     fontSize: 16,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
+    fontFamily: fonts.display,
+    color: colors.ink,
     marginBottom: 4,
   },
   productCount: {
     fontSize: 14,
-    color: '#666666',
+    fontFamily: fonts.sansMedium,
+    color: colors.inkMuted,
   },
   bottomSummary: {
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.surface,
     paddingHorizontal: 20,
     paddingVertical: 15,
     borderTopWidth: 1,
-    borderTopColor: '#e5e5ea',
+    borderTopColor: colors.line,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -887,14 +880,14 @@ const styles = StyleSheet.create({
   },
   summaryText: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#007AFF',
+    fontFamily: fonts.sansSemi,
+    color: colors.brand,
     marginLeft: 8,
   },
   // Modal Styles
   modalContainer: {
     flex: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.surface,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -902,17 +895,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingVertical: 15,
-    backgroundColor: '#8B5CF6', // Purple header like in image
+    backgroundColor: colors.brand, // Purple header like in image
   },
   modalTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#ffffff',
+    fontFamily: fonts.display,
+    color: colors.white,
   },
   addButton: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#ffffff',
+    fontFamily: fonts.sansSemi,
+    color: colors.white,
   },
   categoryHeader: {
     flexDirection: 'row',
@@ -920,16 +913,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingVertical: 16,
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.surface,
   },
   categoryTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#8B5CF6', // Purple brand name
+    fontFamily: fonts.display,
+    color: colors.brand, // Purple brand name
   },
   modalContent: {
     flex: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.surface,
   },
   modalListContent: {
     flexGrow: 1,
@@ -954,8 +947,8 @@ const styles = StyleSheet.create({
   },
   modalEmptyText: {
     fontSize: 15,
-    color: '#8E8E93',
-    fontWeight: '500',
+    fontFamily: fonts.sansMedium,
+    color: colors.inkFaint,
   },
   modalFooterLoader: {
     paddingVertical: 16,
@@ -969,12 +962,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomColor: colors.surfaceMuted,
   },
   productName: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#1F2937',
+    fontFamily: fonts.sansBold,
+    color: colors.ink,
     marginBottom: 12,
   },
   productControls: {
@@ -990,22 +983,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: colors.surfaceMuted,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: colors.line,
   },
   unitButtonSelected: {
-    backgroundColor: '#8B5CF6',
-    borderColor: '#8B5CF6',
+    backgroundColor: colors.brand,
+    borderColor: colors.brand,
   },
   unitText: {
     fontSize: 14,
-    fontWeight: '500',
-    color: '#6B7280',
+    fontFamily: fonts.sansSemi,
+    color: colors.inkMuted,
   },
   unitTextSelected: {
-    color: '#ffffff',
-    fontWeight: '600',
+    fontFamily: fonts.sansSemi,
+    color: colors.white,
   },
   quantitySection: {
     alignItems: 'center',
@@ -1013,15 +1006,15 @@ const styles = StyleSheet.create({
   quantityControls: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.surface,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#8B5CF6',
+    borderColor: colors.brand,
     paddingHorizontal: 4,
     paddingVertical: 2,
   },
   quantityControlsSelected: {
-    backgroundColor: '#8B5CF6',
+    backgroundColor: colors.brand,
   },
   quantityButton: {
     padding: 8,
@@ -1030,8 +1023,8 @@ const styles = StyleSheet.create({
   },
   quantityInput: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#8B5CF6',
+    fontFamily: fonts.sansSemi,
+    color: colors.brand,
     paddingHorizontal: 8,
     minWidth: 40,
     textAlign: 'center',
@@ -1039,26 +1032,27 @@ const styles = StyleSheet.create({
     borderWidth: 0,
   },
   quantityInputSelected: {
-    color: '#ffffff',
+    color: colors.white,
   },
   notesSection: {
     marginTop: 12,
   },
   notesLabel: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#374151',
+    fontFamily: fonts.sansSemi,
+    color: colors.inkMuted,
     marginBottom: 6,
   },
   notesInput: {
-    backgroundColor: '#F9FAFB',
+    backgroundColor: colors.surfaceMuted,
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 14,
-    color: '#1F2937',
+    fontFamily: fonts.sansMedium,
+    color: colors.ink,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: colors.line,
     textAlignVertical: 'top',
     minHeight: 60,
   },
@@ -1070,42 +1064,37 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 16,
-    color: '#666',
+    fontFamily: fonts.sansMedium,
+    color: colors.inkMuted,
     marginTop: 12,
   },
   // Date Picker Styles
   dateSection: {
-    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.surface,
     marginHorizontal: 20,
     marginBottom: 10,
     borderRadius: 16,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 6,
+    padding: 20,
   },
   dateSectionHeader: {
     marginBottom: 12,
   },
   dateSectionTitle: {
     fontSize: 16,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
+    fontFamily: fonts.display,
+    color: colors.ink,
   },
   datePickerButton: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#f8f9fa',
+    backgroundColor: colors.bg,
     borderRadius: 12,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#e5e5ea',
+    borderColor: colors.line,
   },
   datePickerContent: {
     flexDirection: 'row',
@@ -1114,14 +1103,14 @@ const styles = StyleSheet.create({
   },
   datePickerText: {
     fontSize: 16,
-    color: '#1a1a1a',
-    marginLeft: 12,
-    fontWeight: '500',
+    fontFamily: fonts.sansMedium,
+    color: colors.ink,
+    marginLeft: 12,
   },
   // Date Picker Modal Styles
   datePickerContainer: {
     flex: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.surface,
   },
   datePickerHeader: {
     flexDirection: 'row',
@@ -1129,19 +1118,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingVertical: 15,
-    backgroundColor: '#007AFF',
+    backgroundColor: colors.brand,
     borderBottomWidth: 1,
-    borderBottomColor: '#e5e5ea',
+    borderBottomColor: colors.line,
   },
   datePickerTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#ffffff',
+    fontFamily: fonts.display,
+    color: colors.white,
   },
   todayButton: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#ffffff',
+    fontFamily: fonts.sansSemi,
+    color: colors.white,
   },
   calendarContainer: {
     flex: 1,
@@ -1155,8 +1144,8 @@ const styles = StyleSheet.create({
   },
   monthYear: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
+    fontFamily: fonts.display,
+    color: colors.ink,
   },
   dayNamesRow: {
     flexDirection: 'row',
@@ -1165,8 +1154,8 @@ const styles = StyleSheet.create({
   },
   dayName: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#666666',
+    fontFamily: fonts.sansSemi,
+    color: colors.inkMuted,
     width: 40,
     textAlign: 'center',
   },
@@ -1184,24 +1173,24 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   selectedDay: {
-    backgroundColor: '#007AFF',
+    backgroundColor: colors.brand,
   },
   todayDay: {
-    backgroundColor: '#f0f8ff',
+    backgroundColor: colors.brandSoft,
     borderWidth: 1,
-    borderColor: '#007AFF',
+    borderColor: colors.brand,
   },
   dayText: {
     fontSize: 16,
-    color: '#1a1a1a',
-    fontWeight: '500',
+    fontFamily: fonts.sansMedium,
+    color: colors.ink,
   },
   selectedDayText: {
-    color: '#ffffff',
-    fontWeight: 'bold',
+    fontFamily: fonts.sansBold,
+    color: colors.white,
   },
   todayDayText: {
-    color: '#007AFF',
-    fontWeight: 'bold',
+    fontFamily: fonts.sansBold,
+    color: colors.brand,
   },
 });

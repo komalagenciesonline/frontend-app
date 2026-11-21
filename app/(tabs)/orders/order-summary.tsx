@@ -5,6 +5,7 @@ import { Alert, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View 
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { api } from '../../../utils/api';
 import { markListDirty } from '../../../utils/listRefresh';
+import { colors, fonts } from '../../../constants/theme';
 
 interface SelectedItem {
   productId: string;
@@ -99,7 +100,7 @@ export default function OrderSummaryScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
+      <StatusBar barStyle="dark-content" backgroundColor={colors.surface} />
       
       {/* Header */}
       <View style={styles.header}>
@@ -107,7 +108,7 @@ export default function OrderSummaryScreen() {
           style={styles.backButton}
           onPress={() => router.back()}
         >
-          <Ionicons name="arrow-back" size={24} color="#007AFF" />
+          <Ionicons name="arrow-back" size={24} color={colors.brand} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Order Summary</Text>
         <View style={styles.placeholder} />
@@ -116,7 +117,7 @@ export default function OrderSummaryScreen() {
       {/* Retailer Information */}
       <View style={styles.retailerSection}>
         <View style={styles.retailerHeader}>
-          <Ionicons name="storefront" size={24} color="#007AFF" />
+          <Ionicons name="storefront" size={24} color={colors.brand} />
           <Text style={styles.sectionTitle}>Retailer Information</Text>
         </View>
         
@@ -147,7 +148,7 @@ export default function OrderSummaryScreen() {
       <ScrollView style={styles.itemsContainer} showsVerticalScrollIndicator={false}>
         <View style={styles.itemsHeader}>
           <View style={styles.itemsTitleRow}>
-            <Ionicons name="cube-outline" size={24} color="#007AFF" />
+            <Ionicons name="cube-outline" size={24} color={colors.brand} />
             <Text style={styles.sectionTitle}>Order Items</Text>
           </View>
           <Text style={styles.totalItemsText}>
@@ -163,7 +164,7 @@ export default function OrderSummaryScreen() {
         
         {parsedOrderItems.length === 0 && (
           <View style={styles.emptyState}>
-            <Ionicons name="cube-outline" size={64} color="#ccc" />
+            <Ionicons name="cube-outline" size={64} color={colors.line} />
             <Text style={styles.emptyText}>No items in order</Text>
             <Text style={styles.emptySubtext}>Go back to add items to your order</Text>
           </View>
@@ -195,7 +196,7 @@ export default function OrderSummaryScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: colors.bg,
   },
   header: {
     flexDirection: 'row',
@@ -203,35 +204,30 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingVertical: 15,
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: '#e5e5ea',
+    borderBottomColor: colors.line,
   },
   backButton: {
     padding: 5,
   },
   headerTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
+    fontFamily: fonts.display,
+    color: colors.ink,
   },
   placeholder: {
+    fontFamily: fonts.sansMedium,
     width: 34,
   },
   retailerSection: {
-    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.surface,
     marginHorizontal: 20,
     marginTop: 20,
     borderRadius: 16,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 6,
+    padding: 20,
   },
   retailerHeader: {
     flexDirection: 'row',
@@ -240,8 +236,8 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
+    fontFamily: fonts.display,
+    color: colors.ink,
     marginLeft: 12,
   },
   retailerInfo: {
@@ -254,13 +250,13 @@ const styles = StyleSheet.create({
   },
   infoLabel: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#666666',
+    fontFamily: fonts.sansSemi,
+    color: colors.inkMuted,
   },
   infoValue: {
     fontSize: 16,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
+    fontFamily: fonts.sansBold,
+    color: colors.ink,
   },
   itemsContainer: {
     flex: 1,
@@ -279,59 +275,55 @@ const styles = StyleSheet.create({
   },
   totalItemsText: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#007AFF',
+    fontFamily: fonts.sansSemi,
+    color: colors.brand,
   },
   itemsList: {
     gap: 12,
     paddingBottom: 20,
   },
   orderItemCard: {
-    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 16,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 5,
+    alignItems: 'center',
   },
   itemInfo: {
     flex: 1,
   },
   itemName: {
     fontSize: 16,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
+    fontFamily: fonts.sansBold,
+    color: colors.ink,
     marginBottom: 4,
   },
   brandName: {
     fontSize: 14,
-    color: '#666666',
+    fontFamily: fonts.display,
+    color: colors.inkMuted,
   },
   notesContainer: {
     marginTop: 8,
     padding: 8,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: colors.bg,
     borderRadius: 6,
     borderLeftWidth: 3,
-    borderLeftColor: '#007AFF',
+    borderLeftColor: colors.brand,
   },
   notesLabel: {
     fontSize: 12,
-    fontWeight: '600',
-    color: '#007AFF',
+    fontFamily: fonts.sansSemi,
+    color: colors.brand,
     marginBottom: 2,
   },
   notesText: {
     fontSize: 13,
-    color: '#374151',
+    fontFamily: fonts.sans,
+    color: colors.inkMuted,
     lineHeight: 18,
   },
   itemDetails: {
@@ -339,14 +331,14 @@ const styles = StyleSheet.create({
   },
   quantityText: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#007AFF',
+    fontFamily: fonts.sansBold,
+    color: colors.brand,
     marginBottom: 2,
   },
   unitText: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#666666',
+    fontFamily: fonts.sansSemi,
+    color: colors.inkMuted,
   },
   emptyState: {
     alignItems: 'center',
@@ -354,13 +346,14 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 18,
-    fontWeight: '600',
-    color: '#666666',
+    fontFamily: fonts.sansSemi,
+    color: colors.inkMuted,
     marginTop: 16,
   },
   emptySubtext: {
     fontSize: 14,
-    color: '#999999',
+    fontFamily: fonts.sans,
+    color: colors.inkFaint,
     marginTop: 4,
     textAlign: 'center',
   },
@@ -368,9 +361,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     paddingHorizontal: 20,
     paddingVertical: 15,
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.surface,
     borderTopWidth: 1,
-    borderTopColor: '#e5e5ea',
+    borderTopColor: colors.line,
     gap: 12,
   },
   cancelButton: {
@@ -378,28 +371,28 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#e5e5ea',
-    backgroundColor: '#ffffff',
+    borderColor: colors.line,
+    backgroundColor: colors.surface,
   },
   cancelButtonText: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#666666',
+    fontFamily: fonts.sansSemi,
+    color: colors.inkMuted,
     textAlign: 'center',
   },
   confirmButton: {
     flex: 1,
     paddingVertical: 12,
     borderRadius: 8,
-    backgroundColor: '#007AFF',
+    backgroundColor: colors.brand,
   },
   confirmButtonText: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#ffffff',
+    fontFamily: fonts.sansBold,
+    color: colors.white,
     textAlign: 'center',
   },
   confirmButtonDisabled: {
-    backgroundColor: '#cccccc',
+    backgroundColor: colors.lineStrong,
   },
 });

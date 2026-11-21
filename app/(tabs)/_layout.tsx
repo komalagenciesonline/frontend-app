@@ -1,28 +1,44 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
+import { Platform, View } from 'react-native';
+import { colors, fonts } from '../../constants/theme';
 
 export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: '#007AFF',
-        tabBarInactiveTintColor: '#8E8E93',
+        tabBarActiveTintColor: colors.brand,
+        tabBarInactiveTintColor: colors.inkFaint,
+        tabBarLabelStyle: {
+          fontFamily: fonts.sansSemi,
+          fontSize: 11,
+          letterSpacing: 0.3,
+          marginTop: 2,
+        },
         tabBarStyle: {
-          backgroundColor: '#ffffff',
+          backgroundColor: colors.surface,
           borderTopWidth: 1,
-          borderTopColor: '#E5E5EA',
-          paddingBottom: 5,
-          paddingTop: 5,
-          height: 60,
+          borderTopColor: colors.line,
+          paddingBottom: Platform.OS === 'ios' ? 8 : 6,
+          paddingTop: 8,
+          height: Platform.OS === 'ios' ? 84 : 64,
+          elevation: 0,
+          shadowOpacity: 0,
+        },
+        tabBarItemStyle: {
+          paddingVertical: 2,
         },
         headerStyle: {
-          backgroundColor: '#ffffff',
+          backgroundColor: colors.surface,
           borderBottomWidth: 1,
-          borderBottomColor: '#E5E5EA',
+          borderBottomColor: colors.line,
+          elevation: 0,
+          shadowOpacity: 0,
         },
         headerTitleStyle: {
-          fontWeight: 'bold',
+          fontFamily: fonts.display,
           fontSize: 18,
+          color: colors.ink,
         },
       }}
     >
@@ -31,8 +47,21 @@ export default function TabLayout() {
         options={{
           title: 'Home',
           headerShown: false,
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="home-outline" size={size} color={color} />
+          tabBarIcon: ({ color, size, focused }) => (
+            <View
+              style={
+                focused
+                  ? {
+                      backgroundColor: colors.brandSoft,
+                      borderRadius: 10,
+                      paddingHorizontal: 10,
+                      paddingVertical: 4,
+                    }
+                  : undefined
+              }
+            >
+              <Ionicons name={focused ? 'home' : 'home-outline'} size={size} color={color} />
+            </View>
           ),
           headerTitle: 'Komal Agencies',
         }}
@@ -42,8 +71,21 @@ export default function TabLayout() {
         options={{
           title: 'Orders',
           headerShown: false,
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="list-outline" size={size} color={color} />
+          tabBarIcon: ({ color, size, focused }) => (
+            <View
+              style={
+                focused
+                  ? {
+                      backgroundColor: colors.brandSoft,
+                      borderRadius: 10,
+                      paddingHorizontal: 10,
+                      paddingVertical: 4,
+                    }
+                  : undefined
+              }
+            >
+              <Ionicons name={focused ? 'list' : 'list-outline'} size={size} color={color} />
+            </View>
           ),
           headerTitle: 'Orders',
         }}
@@ -53,8 +95,25 @@ export default function TabLayout() {
         options={{
           title: 'Retailers',
           headerShown: false,
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="storefront-outline" size={size} color={color} />
+          tabBarIcon: ({ color, size, focused }) => (
+            <View
+              style={
+                focused
+                  ? {
+                      backgroundColor: colors.brandSoft,
+                      borderRadius: 10,
+                      paddingHorizontal: 10,
+                      paddingVertical: 4,
+                    }
+                  : undefined
+              }
+            >
+              <Ionicons
+                name={focused ? 'storefront' : 'storefront-outline'}
+                size={size}
+                color={color}
+              />
+            </View>
           ),
           headerTitle: 'Retailers',
         }}
@@ -64,8 +123,21 @@ export default function TabLayout() {
         options={{
           title: 'Items',
           headerShown: false,
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="cube-outline" size={size} color={color} />
+          tabBarIcon: ({ color, size, focused }) => (
+            <View
+              style={
+                focused
+                  ? {
+                      backgroundColor: colors.brandSoft,
+                      borderRadius: 10,
+                      paddingHorizontal: 10,
+                      paddingVertical: 4,
+                    }
+                  : undefined
+              }
+            >
+              <Ionicons name={focused ? 'cube' : 'cube-outline'} size={size} color={color} />
+            </View>
           ),
           headerTitle: 'Items',
         }}

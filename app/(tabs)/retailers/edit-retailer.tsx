@@ -5,8 +5,9 @@ import { Alert, Animated, Pressable, ScrollView, StatusBar, StyleSheet, Text, Te
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { api, Retailer } from '../../../utils/api';
 import { markListDirty } from '../../../utils/listRefresh';
+import { colors, fonts } from '../../../constants/theme';
 
-const ACCENT = '#3D5AFE';
+const ACCENT = colors.brand;
 
 const BITS = [
   'Turori',
@@ -118,18 +119,18 @@ export default function EditRetailerScreen() {
   if (!retailer) {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
-        <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
+        <StatusBar barStyle="dark-content" backgroundColor={colors.surface} />
 
         <View style={styles.header}>
           <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-            <Ionicons name="arrow-back" size={24} color="#007AFF" />
+            <Ionicons name="arrow-back" size={24} color={colors.brand} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Edit Retailer</Text>
           <View style={styles.placeholder} />
         </View>
 
         <View style={styles.errorContainer}>
-          <Ionicons name="alert-circle-outline" size={64} color="#FF3B30" />
+          <Ionicons name="alert-circle-outline" size={64} color={colors.danger} />
           <Text style={styles.errorText}>Error</Text>
           <Text style={styles.errorSubtext}>No retailer data found</Text>
           <TouchableOpacity style={styles.backButtonError} onPress={() => router.back()}>
@@ -142,11 +143,11 @@ export default function EditRetailerScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
+      <StatusBar barStyle="dark-content" backgroundColor={colors.surface} />
 
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={24} color="#007AFF" />
+          <Ionicons name="arrow-back" size={24} color={colors.brand} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Edit Retailer</Text>
         <View style={styles.placeholder} />
@@ -166,7 +167,7 @@ export default function EditRetailerScreen() {
             <TextInput
               style={styles.textInput}
               placeholder="Enter retailer name"
-              placeholderTextColor="#999"
+              placeholderTextColor={colors.inkFaint}
               value={retailerName}
               onChangeText={setRetailerName}
               autoCapitalize="words"
@@ -178,7 +179,7 @@ export default function EditRetailerScreen() {
             <TextInput
               style={styles.textInput}
               placeholder="Enter phone number"
-              placeholderTextColor="#999"
+              placeholderTextColor={colors.inkFaint}
               value={phoneNo}
               onChangeText={setPhoneNo}
               keyboardType="phone-pad"
@@ -276,7 +277,7 @@ export default function EditRetailerScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: colors.bg,
   },
   header: {
     flexDirection: 'row',
@@ -284,19 +285,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingVertical: 15,
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: '#e5e5ea',
+    borderBottomColor: colors.line,
   },
   backButton: {
     padding: 5,
   },
   headerTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
+    fontFamily: fonts.display,
+    color: colors.ink,
   },
   placeholder: {
+    fontFamily: fonts.sansMedium,
     width: 34,
   },
   contentContainer: {
@@ -315,18 +317,19 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#1a1a1a',
+    fontFamily: fonts.sansSemi,
+    color: colors.ink,
   },
   textInput: {
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 14,
     fontSize: 16,
-    color: '#1a1a1a',
+    fontFamily: fonts.sansMedium,
+    color: colors.ink,
     borderWidth: 1,
-    borderColor: '#e5e5ea',
+    borderColor: colors.line,
   },
   floatingLabelInputWrap: {
     marginBottom: 16,
@@ -334,33 +337,34 @@ const styles = StyleSheet.create({
   inputRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f3f6fa',
+    backgroundColor: colors.surfaceMuted,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#e5e5ea',
+    borderColor: colors.line,
     marginBottom: 2,
   },
   inputIcon: {
     marginLeft: 12,
     marginRight: 8,
     fontSize: 18,
+    fontFamily: fonts.sans,
   },
   dropdownPicker: {
-    backgroundColor: '#f3f6fa',
+    backgroundColor: colors.surfaceMuted,
     borderRadius: 12,
     paddingVertical: 16,
     paddingHorizontal: 16,
     marginBottom: 4,
     borderWidth: 1,
-    borderColor: '#e5e5ea',
+    borderColor: colors.line,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
   dropdownPickerText: {
-    color: '#1a1a1a',
+    color: colors.ink,
     fontSize: 15,
-    fontWeight: '500',
+    fontFamily: fonts.sansMedium,
     flex: 1,
   },
   dropdownPickerEmphasis: {
@@ -370,25 +374,20 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
     shadowRadius: 8,
-    elevation: 4,
+    elevation: 1,
   },
   inlineDropdown: {
     position: 'absolute',
     top: '100%',
     left: 0,
     right: 0,
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     marginTop: 4,
     paddingVertical: 8,
-    paddingHorizontal: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.07,
-    shadowRadius: 6,
-    elevation: 2,
+    paddingHorizontal: 4,
     borderWidth: 1,
-    borderColor: '#e5e5ea',
+    borderColor: colors.line,
     zIndex: 1000,
   },
   inlineDropdownOption: {
@@ -402,14 +401,14 @@ const styles = StyleSheet.create({
     backgroundColor: ACCENT,
   },
   inlineDropdownOptionText: {
-    color: '#1a1a1a',
+    color: colors.ink,
     fontSize: 16,
-    fontWeight: '500',
+    fontFamily: fonts.sansMedium,
     textAlign: 'center',
   },
   inlineDropdownOptionTextSelected: {
-    color: '#fff',
-    fontWeight: '700',
+    fontFamily: fonts.sansSemi,
+    color: colors.white,
   },
   dropdownOverlay: {
     position: 'absolute',
@@ -424,25 +423,25 @@ const styles = StyleSheet.create({
     maxHeight: 200,
   },
   bottomContainer: {
-    backgroundColor: '#ffffff',
+    backgroundColor: colors.surface,
     paddingHorizontal: 20,
     paddingVertical: 20,
     borderTopWidth: 1,
-    borderTopColor: '#e5e5ea',
+    borderTopColor: colors.line,
   },
   updateButton: {
-    backgroundColor: '#007AFF',
+    backgroundColor: colors.brand,
     borderRadius: 12,
     paddingVertical: 16,
     alignItems: 'center',
   },
   updateButtonDisabled: {
-    backgroundColor: '#cccccc',
+    backgroundColor: colors.lineStrong,
   },
   updateButtonText: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#ffffff',
+    fontFamily: fonts.sansBold,
+    color: colors.white,
   },
   errorContainer: {
     flex: 1,
@@ -453,16 +452,17 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: 24,
-    fontWeight: 'bold',
-    color: '#FF3B30',
+    fontFamily: fonts.display,
+    color: colors.danger,
   },
   errorSubtext: {
     fontSize: 16,
-    color: '#666666',
+    fontFamily: fonts.sans,
+    color: colors.inkMuted,
     textAlign: 'center',
   },
   backButtonError: {
-    backgroundColor: '#007AFF',
+    backgroundColor: colors.brand,
     borderRadius: 12,
     paddingVertical: 12,
     paddingHorizontal: 24,
@@ -470,7 +470,7 @@ const styles = StyleSheet.create({
   },
   backButtonText: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#ffffff',
+    fontFamily: fonts.sansBold,
+    color: colors.white,
   },
 });
